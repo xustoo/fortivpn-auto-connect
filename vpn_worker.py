@@ -266,6 +266,13 @@ class VPNWorker(threading.Thread):
                 self.config["MAC_SUDO_PASS"] = ""
                 return False
 
+            # FortiGate Güvenlik Duvarı Koruması / Hata Mesajları
+            if any(p in output_buffer.lower() for p in ["too many bad login attempts", "login disabled", "permission denied"]):
+                self.log("UYARI: FortiGate sunucusu çok fazla deneme nedeniyle geçici olarak kilitlendi (60-120 sn). Bekleniyor...")
+                self.on_status_change("Sunucu Kilitli (Bekleniyor)", "#eed49f")
+                time.sleep(30)
+                return False
+
             # Sertifika onayı
             if any(p in output_buffer for p in ["(Y/N)", "(y/n)", "Do you want to continue with this connection?"]):
                 self.log("CLI: Sertifika onayı tespit edildi, 'Y' gönderiliyor...")
