@@ -104,7 +104,7 @@ class VPNWorker(threading.Thread):
 
     def run(self):
         """Ana döngü: Bağlanma ve otomatik kurtarma."""
-        reconnect_delay = int(self.config.get("RECONNECT_DELAY", "15"))
+        reconnect_delay = int(self.config.get("RECONNECT_DELAY", "20"))
 
         while not self._stop_event.is_set():
             try:
@@ -166,14 +166,13 @@ class VPNWorker(threading.Thread):
         user = self.config.get("VPN_USER", "")
         password = self.config.get("VPN_PASS", "")
 
-        self.log("IMAP: Referans e-posta ID'si kontrol ediliyor...")
+        self.log("IMAP: Referans e-posta kontrol ediliyor...")
         baseline_id = get_latest_email_id(
             imap_server=self.config.get("IMAP_SERVER", ""),
             imap_port=int(self.config.get("IMAP_PORT", "993")),
             imap_user=self.config.get("IMAP_USER", ""),
             imap_pass=self.config.get("IMAP_PASS", "")
         )
-        self.log(f"IMAP: Başlangıç referans e-posta ID: {baseline_id}")
 
         sudo_pass = self.config.get("MAC_SUDO_PASS", "")
 
@@ -207,7 +206,7 @@ class VPNWorker(threading.Thread):
             cmd = ["sudo", "-S", openfortivpn_bin, "-c", conf_path]
 
         self.on_status_change("Bağlanıyor...", "#8aadf4")
-        self.log(f"VPN istemcisi başlatılıyor: {server} (Kullanıcı: {user})")
+        self.log(f"VPN başlatılıyor: {server} (Kullanıcı: {user})")
 
         try:
             self.process = subprocess.Popen(
@@ -251,7 +250,6 @@ class VPNWorker(threading.Thread):
             char = raw_byte.decode("utf-8", errors="replace")
             output_buffer += char
 
-            # Satır sonu geldiğinde konsola yazdır
             if char == "\n":
                 line = output_buffer.strip()
                 if line and not any(p in line.lower() for p in ["password", "parola"]):
@@ -260,14 +258,14 @@ class VPNWorker(threading.Thread):
             elif len(output_buffer) > 400:
                 output_buffer = output_buffer[-400:]
 
-            # Sudo Hatalı Parola Kontrolü
+            # Hatalı Mac Parolası
             if "incorrect password attempt" in output_buffer or "Sorry, try again" in output_buffer:
                 self.log("HATA: Girilen Mac yönetici parolası yanlış!")
                 self.on_status_change("Hatalı Mac Parolası", "#ed8796")
                 self.config["MAC_SUDO_PASS"] = ""
                 return False
 
-            # Sertifika onayı (Windows veya CLI)
+            # Sertifika onayı
             if any(p in output_buffer for p in ["(Y/N)", "(y/n)", "Do you want to continue with this connection?"]):
                 self.log("CLI: Sertifika onayı tespit edildi, 'Y' gönderiliyor...")
                 self.process.stdin.write(b"Y\n")
@@ -282,7 +280,7 @@ class VPNWorker(threading.Thread):
                 self.trusted_cert = found_digest
                 self.config["TRUSTED_CERT"] = found_digest
 
-            # --- 1. ÖNCE 2FA TOKEN İSTEMİNİ YAKALA ---
+            # --- 1. 2FA TOKEN İSTEMİ ---
             is_token_prompt = any(
                 p in output_buffer.lower() for p in [
                     "two-factor authentication token:",
@@ -298,8 +296,8 @@ class VPNWorker(threading.Thread):
 
             if is_token_prompt and not token_requested:
                 token_requested = True
-                self.on_status_change("2FA Bekleniyor (~20s)...", "#eed49f")
-                self.log("[2FA] İstemi algılandı. Kolaysoft e-postasının düşmesi için 20 saniye bekleniyor...")
+                self.on_status_change("2FA Taranıyor...", "#eed49f")
+                self.log("[2FA] İstemi algılandı. Yeni doğrulama e-postası taranıyor...")
 
                 token_code = fetch_token_from_imap(
                     imap_server=self.config.get("IMAP_SERVER", ""),
@@ -307,8 +305,7 @@ class VPNWorker(threading.Thread):
                     imap_user=self.config.get("IMAP_USER", ""),
                     imap_pass=self.config.get("IMAP_PASS", ""),
                     after_id=baseline_id,
-                    delay_sec=20,
-                    timeout_sec=int(self.config.get("MAIL_TIMEOUT", "90")),
+                    timeout_sec=int(self.config.get("MAIL_TIMEOUT", "45")),
                     log_callback=self.log,
                     stop_check=lambda: self._stop_event.is_set()
                 )
@@ -320,12 +317,17 @@ class VPNWorker(threading.Thread):
 
                 self.on_token_received(token_code)
                 self.log(f"[2FA] Kod VPN istemcisine iletiliyor: {token_code}")
-                self.process.stdin.write(f"{token_code}\n".encode("utf-8"))
-                self.process.stdin.flush()
+
+                try:
+                    self.process.stdin.write(f"{token_code}\n".encode("utf-8"))
+                    self.process.stdin.flush()
+                except (BrokenPipeError, OSError) as e:
+                    self.log(f"HATA: VPN sunucusu zaman aşımı nedeniyle bağlantıyı erken kapattı ({e}).")
+                    return False
+
                 output_buffer = ""
 
             # --- 2. SADECE GERÇEK TÜNEL AÇILMA MESAJLARINI KABUL ET ---
-            # DİKKAT: 'Connected to gateway' gibi ilk el sıkışma mesajları tünelin açıldığı anlamına gelmez!
             is_connected_msg = any(
                 p in output_buffer for p in [
                     "Tunnel is up and running.",
@@ -338,7 +340,7 @@ class VPNWorker(threading.Thread):
             if is_connected_msg and not connected:
                 connected = True
                 self.is_connected = True
-                self.on_status_change("Bağlandı (Aktif Tünel)", "#a6da95")
+                self.on_status_change("Bağlandı", "#a6da95")
                 self.on_connected()
                 self.log(">>> TEBRİKLER: Kolaysoft VPN Tüneli Başarıyla Açıldı! <<<")
                 break

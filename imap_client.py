@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 r"""
 Carbonio IMAP 2FA E-posta Okuyucu Modülü
-Kolaysoft e-posta sunucusundan 'AuthCode' başlıklı doğrulama kodlarını çeker.
-Mail sunucusu gecikmelerini tolere etmek için zaman aşımı ve bekleme süresi içerir.
+Kolaysoft e-posta sunucusundan 'AuthCode' başlıklı doğrulama kodlarını anlık olarak çeker.
+Eski denemelerden kalan e-postaları kesinlikle filtreler ve sadece yeni gelen kodu kabul eder.
 """
 
 import time
@@ -21,8 +21,8 @@ USED_EMAIL_IDS: Set[int] = set()
 
 def get_latest_email_id(imap_server: str, imap_port: int, imap_user: str, imap_pass: str) -> Optional[int]:
     """
-    Oturum başlamadan önceki en son e-postanın ID'sini alır.
-    Kutudaki eski kodları kara listeye ekleyerek tekrar kullanılmalarını engeller.
+    Mevcut en son AuthCode e-postasının ID numarasını döner.
+    Ayrıca kutudaki mevcut tüm eski kodları kara listeye ekler ki tekrar kullanılmasınlar.
     """
     mail = None
     try:
@@ -59,15 +59,14 @@ def fetch_token_from_imap(
     imap_user: str,
     imap_pass: str,
     after_id: Optional[int] = None,
-    delay_sec: int = 20,
-    timeout_sec: int = 90,
+    timeout_sec: int = 45,
     log_callback: Optional[Callable[[str], None]] = None,
     stop_check: Optional[Callable[[], bool]] = None
 ) -> Optional[str]:
     """
-    Carbonio IMAP üzerinden yeni gelen 2FA AuthCode e-postasını bekler.
-    1. Önce mailin sunucuya ulaşması için 20 saniyelik zaman aşımı (delay) uygular.
-    2. Ardından gelen kutusunu tarar ve yalnızca yeni gelen e-postayı okur.
+    Carbonio IMAP üzerinden YENİ gelen 2FA AuthCode e-postasını anlık olarak arar.
+    FortiGate zaman aşımına (15 sn) uğramadan kodu anında yakalamak için 1.5 saniyelik
+    hızlı döngüyle tarar. Eski kodları kesinlikle atlar!
     """
     def _log(msg: str):
         if log_callback:
@@ -75,21 +74,12 @@ def fetch_token_from_imap(
         else:
             print(msg)
 
-    _log(f"IMAP: 2FA e-postasının Carbonio sunucusuna ulaşması bekleniyor ({delay_sec} saniye bekleme süresi)...")
-
-    # 1. Aşama: E-posta gecikmesini bekleyen geri sayım döngüsü
-    for sec_left in range(delay_sec, 0, -1):
-        if stop_check and stop_check():
-            _log("IMAP: İşlem kullanıcı tarafından durduruldu.")
-            return None
-        if sec_left in [20, 15, 10, 5, 2, 1]:
-            _log(f"IMAP: E-posta bekleniyor... ({sec_left} sn kaldı)")
-        time.sleep(1)
-
-    _log(f"IMAP: Gelen kutusu taranıyor (Referans ID > {after_id})...")
+    _log(f"IMAP: Yeni 2FA e-postası taranıyor (Referans ID > {after_id})...")
     start_time = time.time()
 
-    # 2. Aşama: Yeni gelen e-postayı yakalama döngüsü
+    # Sunucuya e-postanın ilk baytının düşmesi için 1 saniyelik mikro bekleme
+    time.sleep(1.0)
+
     while time.time() - start_time < timeout_sec:
         if stop_check and stop_check():
             _log("IMAP: İşlem durduruldu.")
@@ -97,7 +87,7 @@ def fetch_token_from_imap(
 
         mail = None
         try:
-            mail = imaplib.IMAP4_SSL(imap_server, imap_port, timeout=8)
+            mail = imaplib.IMAP4_SSL(imap_server, imap_port, timeout=6)
             mail.login(imap_user, imap_pass)
             mail.select("INBOX")
 
@@ -107,13 +97,13 @@ def fetch_token_from_imap(
                 int_ids = sorted([int(x) for x in raw_ids if x.isdigit()])
 
                 if int_ids:
-                    # En yeni e-postaları kontrol et
+                    # En yeni e-postaları geriye doğru incele
                     for candidate_id in reversed(int_ids):
-                        # 1. Şart: ID kesinlikle referanstan büyük olmalı
+                        # 1. Kural: Eğer referans ID varsa, e-posta ID'si mutlaka referanstan BÜYÜK olmalıdır!
                         if after_id is not None and candidate_id <= after_id:
                             continue
 
-                        # 2. Şart: Bu ID bu oturumda daha önce okunmamış olmalı
+                        # 2. Kural: Bu e-posta daha önce okunduysa atla
                         if candidate_id in USED_EMAIL_IDS:
                             continue
 
@@ -144,13 +134,12 @@ def fetch_token_from_imap(
                         if not token_code:
                             continue
 
-                        # 3. Şart: Kod eski denemelerden kalma bir kod olmamalı
+                        # 3. Kural: Kod daha önce kullanılmış bir kod ise kesinlikle atla!
                         if token_code in USED_TOKEN_CODES:
-                            _log(f"IMAP: Mail ID {candidate_id} içindeki kod ({token_code}) eski denemeye ait. Yeni mail bekleniyor...")
                             continue
 
-                        # YENİ KOD BAŞARIYLA BULUNDU
-                        _log(f"IMAP: >>> YENİ 2FA KODU BULUNDU: {token_code} (Mail ID: {candidate_id}) <<<")
+                        # YEPYENİ KOD BULUNDU!
+                        _log(f"IMAP: Yeni 2FA kodu bulundu: {token_code} (Mail ID: {candidate_id})")
                         USED_TOKEN_CODES.add(token_code)
                         USED_EMAIL_IDS.add(candidate_id)
 
@@ -168,14 +157,13 @@ def fetch_token_from_imap(
                 pass
 
         except Exception as e:
-            _log(f"IMAP Uyarısı: {e}")
             if mail:
                 try:
                     mail.logout()
                 except Exception:
                     pass
 
-        time.sleep(2.0)
+        time.sleep(1.2)
 
     _log(f"IMAP: {timeout_sec} saniye içinde yeni 2FA kodu içeren e-posta gelmedi.")
     return None
