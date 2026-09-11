@@ -1,0 +1,12 @@
+# Hassas kimlik ve parola bilgileri (Asla GitHub'a yüklenmemeli!)
+.env
+
+# Python derleme ve önbellek dosyaları
+__pycache__/
+*.py[cod]
+*$py.class
+*.log
+
+# Geçici dosyalar
+*.conf
+.DS_Store
