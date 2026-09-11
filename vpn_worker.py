@@ -13,6 +13,7 @@ import threading
 import shutil
 import re
 import tempfile
+from datetime import datetime, timezone
 from typing import Optional, Callable
 from imap_client import fetch_token_from_imap, get_latest_email_id
 
@@ -296,6 +297,7 @@ class VPNWorker(threading.Thread):
 
             if is_token_prompt and not token_requested:
                 token_requested = True
+                prompt_time = datetime.now(timezone.utc)
                 self.on_status_change("2FA Taranıyor...", "#eed49f")
                 self.log("[2FA] İstemi algılandı. Yeni doğrulama e-postası taranıyor...")
 
@@ -305,6 +307,7 @@ class VPNWorker(threading.Thread):
                     imap_user=self.config.get("IMAP_USER", ""),
                     imap_pass=self.config.get("IMAP_PASS", ""),
                     after_id=baseline_id,
+                    request_timestamp=prompt_time,
                     timeout_sec=int(self.config.get("MAIL_TIMEOUT", "45")),
                     log_callback=self.log,
                     stop_check=lambda: self._stop_event.is_set()
