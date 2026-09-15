@@ -15,7 +15,7 @@ import re
 import tempfile
 from datetime import datetime, timezone
 from typing import Optional, Callable
-from imap_client import fetch_token_from_imap, get_latest_email_id
+from imap_client import fetch_token_from_imap, get_latest_email_id, create_imap_session
 
 
 class VPNWorker(threading.Thread):
@@ -167,8 +167,8 @@ class VPNWorker(threading.Thread):
         user = self.config.get("VPN_USER", "")
         password = self.config.get("VPN_PASS", "")
 
-        self.log("IMAP: Referans e-posta kontrol ediliyor...")
-        baseline_id = get_latest_email_id(
+        self.log("IMAP: Referans e-posta ve aktif oturum hazırlanıyor...")
+        imap_session, baseline_id = create_imap_session(
             imap_server=self.config.get("IMAP_SERVER", ""),
             imap_port=int(self.config.get("IMAP_PORT", "993")),
             imap_user=self.config.get("IMAP_USER", ""),
@@ -316,7 +316,8 @@ class VPNWorker(threading.Thread):
                     after_id=baseline_id,
                     timeout_sec=int(self.config.get("MAIL_TIMEOUT", "45")),
                     log_callback=self.log,
-                    stop_check=lambda: self._stop_event.is_set()
+                    stop_check=lambda: self._stop_event.is_set(),
+                    existing_mail_session=imap_session
                 )
 
                 if not token_code:
