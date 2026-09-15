@@ -343,7 +343,9 @@ class VPNWorker(threading.Thread):
                     "Tunnel is up and running.",
                     "Status: Connected",
                     "Tunnel running",
-                    "ip-up: ppp0"
+                    "ip-up: ppp0",
+                    "Interface ppp0 is UP",
+                    "Adding VPN nameservers"
                 ]
             )
 
