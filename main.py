@@ -64,7 +64,7 @@ class CustomButton(tk.Label):
             fg=fg,
             padx=padx,
             pady=pady,
-            cursor="pointinghand",
+            cursor="pointinghand" if platform.system() == "Darwin" else "hand2",
             relief="flat",
             highlightthickness=1 if border_color else 0,
             highlightbackground=border_color or bg,
