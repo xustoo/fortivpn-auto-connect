@@ -437,6 +437,7 @@ class FortiVPNApp(tk.Tk):
         if self.vpn_worker and self.vpn_worker.is_alive():
             self.log_message("Mevcut VPN oturumu yenileniyor...", "WARN")
             self.vpn_worker.stop()
+            self.vpn_worker.join(timeout=2.0)
 
         self.vpn_worker = VPNWorker(
             config=self.config_data,

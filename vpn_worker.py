@@ -328,6 +328,10 @@ class VPNWorker(threading.Thread):
                 self.on_token_received(token_code)
                 self.log(f"[2FA] Kod VPN istemcisine iletiliyor: {token_code}")
 
+                if not self.process or not self.process.stdin:
+                    self.log("VPN süreci sonlandırıldığı için kod iletilemedi.")
+                    return False
+
                 try:
                     self.process.stdin.write(f"{token_code}\n".encode("utf-8"))
                     self.process.stdin.flush()
