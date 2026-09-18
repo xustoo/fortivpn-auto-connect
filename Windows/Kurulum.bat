@@ -1,6 +1,7 @@
 @echo off
 setlocal
-cd /d "%~dp0"
+cd /d "%~dp0.."
+set "PROJECT_DIR=%CD%"
 
 echo === FortiVPN Auto-Connect setup ===
 
@@ -109,9 +110,21 @@ echo openconnect zaten kurulu.
 :oc_done
 
 echo.
+echo --- Masaustu kisayolu ---
+set "LAUNCHER=%USERPROFILE%\Desktop\FortiVPN_Baslat.bat"
+(
+echo @echo off
+echo cd /d "%PROJECT_DIR%"
+echo "%PYLAUNCH%" main.py
+) > "%LAUNCHER%"
+echo Kisayol olusturuldu: %LAUNCHER%
+
+echo.
 echo Kurulum tamamlandi. Sonraki adimlar:
 echo   1) .env dosyasini VPN ve IMAP bilgilerinizle doldurun
-echo   2) python main.py  (yonetici yetkisi gerekir - UAC istemine "Evet" deyin)
+echo   2) Masaustundeki 'FortiVPN_Baslat.bat' dosyasina cift tiklayin
+echo      (veya bu klasorde 'python main.py' calistirin)
+echo      Yonetici yetkisi gerekir - UAC istemine "Evet" deyin.
 echo.
 pause
 exit /b 0

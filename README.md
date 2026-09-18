@@ -23,7 +23,6 @@ Hem **macOS** hem de **Windows** sistemlerinde, FortiClient uygulamasına ihtiya
 FortiVPN/
 ├── install.sh              # macOS/Linux için tek tıkla/tek komutla otomatik kurulum aracı
 ├── Kurulum.command         # macOS Finder üzerinden çift tıklanabilir kurulum sihirbazı
-├── install.bat             # Windows için otomatik sanal ortam ve kısayol kurulum aracı
 ├── main.py                 # Masaüstü grafik arayüzü (Tkinter tabanlı GUI)
 ├── vpn_worker.py           # Arka plan VPN tünel ve süreç yönetim motoru
 ├── imap_client.py          # Carbonio / IMAP 2FA e-posta tarama ve kod çıkarma modülü
@@ -32,7 +31,9 @@ FortiVPN/
 ├── .gitignore              # Hassas parolaların GitHub'a gitmesini engelleyen dosya
 ├── FortiVPN_Baslat.command # macOS hızlı başlatıcı betiği
 ├── FortiVPN.app            # macOS çift tıklanabilir yerel uygulama paketi
-└── setup.bat               # Windows hızlı kurulum betiği (Python + bağımlılıklar + openconnect)
+└── Windows/
+    ├── install.ps1         # Windows için tek satırlık/tek komutla web kurulum aracı (Kurulum.bat'ı devreye sokar)
+    └── Kurulum.bat         # Windows kurulum betiği (Python + bağımlılıklar + openconnect + masaüstü kısayolu)
 ```
 
 ---
@@ -57,9 +58,22 @@ Bu komut:
 
 ---
 
-### Windows (Otomatik Kurulum)
+### Windows (Tek Komutla Kurulum)
 
-Projeyi indirdikten sonra klasördeki **`install.bat`** dosyasına çift tıklayın. Sanal ortamınız kurulacak ve Masaüstünüze `FortiVPN_Baslat.bat` kısayolu eklenecektir.
+PowerShell'i açıp aşağıdaki komutu yapıştırmanız yeterlidir (Git kurulu değilse proje otomatik ZIP olarak indirilir):
+
+```powershell
+irm https://raw.githubusercontent.com/xustoo/fortivpn-auto-connect/main/Windows/install.ps1 | iex
+```
+
+Bu komut:
+- Projeyi `Masaüstü\FortiVPN` klasörüne indirir (Git varsa `git clone`, yoksa ZIP indirme).
+- Python kurulu değilse otomatik kurmayı teklif eder.
+- Gerekli Python bağımlılıklarını ve `openconnect` istemcisini kurar.
+- `.env` yapılandırma dosyasını hazır eder.
+- Masaüstünüze çift tıklanabilir **`FortiVPN_Baslat.bat`** kısayolunu yerleştirir.
+
+*Alternatif Olarak:* Projeyi indirip **`Windows`** klasöründeki **`Kurulum.bat`** dosyasına çift tıklayarak da aynı sihirbazı başlatabilirsiniz.
 
 ---
 
@@ -129,19 +143,19 @@ Uygulamayı 3 farklı şekilde başlatabilirsiniz:
 
 ## Windows Kurulum ve Kullanım Kılavuzu
 
-Windows'ta FortiClient uygulamasının kurulu olmasına **gerek yoktur**. Bağlantı, macOS'taki `openfortivpn`'in Windows karşılığı olan açık kaynaklı **openconnect** istemcisiyle kurulur (`--protocol=fortinet`). Windows'ta kurulum için tek yapmanız gereken `setup.bat`'ı çalıştırmaktır.
+Windows'ta FortiClient uygulamasının kurulu olmasına **gerek yoktur**. Bağlantı, macOS'taki `openfortivpn`'in Windows karşılığı olan açık kaynaklı **openconnect** istemcisiyle kurulur (`--protocol=fortinet`). Windows'ta kurulum için tek yapmanız gereken `Windows\Kurulum.bat`'ı çalıştırmaktır.
 
-### 1. Projeyi İndirin ve `setup.bat`'ı Çalıştırın
+### 1. Projeyi İndirin ve `Windows\Kurulum.bat`'ı Çalıştırın
 
 Komut İstemi (CMD) veya PowerShell'de:
 
 ```cmd
 git clone <REPO_URL>
 cd FortiVPN
-setup.bat
+Windows\Kurulum.bat
 ```
 
-`setup.bat` gereken her şeyi sizin yerinize kurar:
+`Kurulum.bat` gereken her şeyi sizin yerinize kurar:
 
 - Python kurulu değilse otomatik kurmayı teklif eder (önce `winget`, o da yoksa/başarısız olursa python.org'un resmi installer'ı).
 - `requirements.txt` bağımlılıklarını kurar.
@@ -152,7 +166,7 @@ Python ve openconnect kurulumları yönetici yetkisi isteyebileceğinden birden 
 
 ### 2. Yapılandırma (`.env` Dosyası)
 
-`setup.bat` `.env` dosyasını sizin için `.env.example`'dan oluşturur; açıp kendi bilgilerinizle doldurun:
+`Kurulum.bat` `.env` dosyasını sizin için `.env.example`'dan oluşturur; açıp kendi bilgilerinizle doldurun:
 
 ```ini
 VPN_SERVER=vpn.sirketiniz.com:10321
@@ -174,6 +188,8 @@ PING_TARGET=off
 
 ### 3. Çalıştırma
 
+`Kurulum.bat` kurulumun sonunda Masaüstünüze **`FortiVPN_Baslat.bat`** kısayolunu ekler; buna çift tıklayarak çalıştırabilirsiniz. Terminalden çalıştırmak isterseniz:
+
 ```cmd
 python main.py
 ```
@@ -184,7 +200,7 @@ python main.py
 
 ### Sorun Giderme: Elle Kurulum
 
-`setup.bat` normalde her şeyi otomatik hallederse de, bir adımda takılırsa (ör. şirket ağında indirme engelleniyorsa) bileşenleri elle de kurabilirsiniz:
+`Kurulum.bat` normalde her şeyi otomatik hallederse de, bir adımda takılırsa (ör. şirket ağında indirme engelleniyorsa) bileşenleri elle de kurabilirsiniz:
 
 - **Python 3.8+**: [python.org](https://www.python.org/downloads/) üzerinden indirip kurun. *(Kurulum sırasında "Add Python to PATH" kutucuğunu işaretleyin.)*
 - **openconnect for Windows (CLI)**: `choco install openconnect-gui` / manuel OpenConnect-GUI installer'ı **sadece GUI'yi kurar, ayrı bir `openconnect.exe` içermez** — bizim otomasyonumuz için işe yaramaz. Gerçek CLI, openconnect projesinin kendi resmi GitLab CI derlemesinden indiriliyor:
