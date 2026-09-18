@@ -29,7 +29,7 @@ FortiVPN/
 ├── .gitignore              # Hassas parolaların GitHub'a gitmesini engelleyen dosya
 ├── FortiVPN_Baslat.command # macOS hızlı başlatıcı betiği
 ├── FortiVPN.app            # macOS çift tıklanabilir yerel uygulama paketi
-└── setup.bat               # Windows hızlı kurulum betiği (bağımlılıklar + openconnect)
+└── setup.bat               # Windows hızlı kurulum betiği (Python + bağımlılıklar + openconnect)
 ```
 
 ---
@@ -99,42 +99,30 @@ Uygulamayı 3 farklı şekilde başlatabilirsiniz:
 
 ## Windows Kurulum ve Kullanım Kılavuzu
 
-Windows'ta FortiClient uygulamasının kurulu olmasına **gerek yoktur**. Bağlantı, macOS'taki `openfortivpn`'in Windows karşılığı olan açık kaynaklı **openconnect** istemcisiyle kurulur (`--protocol=fortinet`).
+Windows'ta FortiClient uygulamasının kurulu olmasına **gerek yoktur**. Bağlantı, macOS'taki `openfortivpn`'in Windows karşılığı olan açık kaynaklı **openconnect** istemcisiyle kurulur (`--protocol=fortinet`). Windows'ta kurulum için tek yapmanız gereken `setup.bat`'ı çalıştırmaktır.
 
-### Hızlı Kurulum (`setup.bat`)
-
-Aşağıdaki adımları tek tek yapmak istemiyorsanız, proje kökündeki `setup.bat`'ı çalıştırın:
-
-```cmd
-setup.bat
-```
-
-Bu betik sırasıyla: `requirements.txt`'i kurar, `.env` yoksa `.env.example`'dan oluşturur, `openconnect` kurulu değilse resmi installer'ı (v9.21, wintun sürücüsü dahil) indirip kurmayı teklif eder. Kurulum yönetici yetkisi istediği için bir UAC penceresi çıkabilir. Sonrasında yalnızca `.env` dosyasını kendi bilgilerinizle doldurup `python main.py` ile çalıştırmanız yeterli — aşağıdaki 1-4 numaralı adımlar bu betiğin manuel karşılığıdır.
-
-### 1. Ön Koşullar
-
-- **Python 3.8+**: [python.org](https://www.python.org/downloads/) üzerinden indirip kurun. *(Kurulum sırasında "Add Python to PATH" kutucuğunu işaretleyin).*
-- **openconnect for Windows (CLI)**: `choco install openconnect-gui` / manuel OpenConnect-GUI installer'ı **sadece GUI'yi kurar, ayrı bir `openconnect.exe` içermez** — bizim otomasyonumuz için işe yaramaz. Gerçek CLI, openconnect projesinin kendi resmi GitLab CI derlemesinden indiriliyor:
-  ```
-  https://gitlab.com/openconnect/openconnect/-/jobs/artifacts/v9.21/raw/openconnect-installer-MinGW64-GnuTLS.exe?job=MinGW64%2FGnuTLS
-  ```
-  Bu dosyayı indirip çalıştırın (`openconnect.exe` genelde `C:\Program Files\OpenConnect\` altına kurulur). Kurulum sonrası klasörü PATH'e ekleyin, ya da `.env` dosyasındaki `OPENCONNECT_EXE` ile tam yolu belirtin.
-
-  > Not: Bu link openconnect'in `v9.21` etiketine bağlı bir GitLab CI artifact'i; ileride süresi dolabilir. Güncel bir sürüm gerekirse: [gitlab.com/openconnect/openconnect/-/pipelines](https://gitlab.com/openconnect/openconnect/-/pipelines) üzerinden istediğiniz etiketin pipeline'ını açıp **"MinGW64/GnuTLS"** job'ının artifact'ini indirin.
-
-### 2. Projeyi İndirme ve Bağımlılıkları Yükleme
+### 1. Projeyi İndirin ve `setup.bat`'ı Çalıştırın
 
 Komut İstemi (CMD) veya PowerShell'de:
 
 ```cmd
 git clone <REPO_URL>
 cd FortiVPN
-pip install -r requirements.txt
+setup.bat
 ```
 
-### 3. Yapılandırma (`.env` Dosyası)
+`setup.bat` gereken her şeyi sizin yerinize kurar:
 
-`copy .env.example .env` komutu ile `.env` oluşturun ve bilgilerinizi düzenleyin:
+- Python kurulu değilse otomatik kurmayı teklif eder (önce `winget`, o da yoksa/başarısız olursa python.org'un resmi installer'ı).
+- `requirements.txt` bağımlılıklarını kurar.
+- `.env` yoksa `.env.example`'dan oluşturur.
+- `openconnect` kurulu değilse resmi installer'ı (v9.21, wintun sürücüsü dahil) indirmeden önce dosya boyutunu ve SHA256 özetini gösterip kurmayı teklif eder.
+
+Python ve openconnect kurulumları yönetici yetkisi isteyebileceğinden birden fazla Windows Kullanıcı Hesabı Denetimi (UAC) penceresi çıkabilir, "Evet" demeniz yeterli.
+
+### 2. Yapılandırma (`.env` Dosyası)
+
+`setup.bat` `.env` dosyasını sizin için `.env.example`'dan oluşturur; açıp kendi bilgilerinizle doldurun:
 
 ```ini
 VPN_SERVER=vpn.sirketiniz.com:10321
@@ -154,15 +142,28 @@ MAIL_TIMEOUT=90
 PING_TARGET=off
 ```
 
-### 4. Çalıştırma
+### 3. Çalıştırma
 
 ```cmd
 python main.py
 ```
 
-`openconnect`'in Windows'ta bir sanal ağ arayüzü (Wintun) oluşturabilmesi için yönetici yetkisi gerekir. Uygulama, admin olarak çalışmıyorsa başlangıçta kendini otomatik olarak yükseltilmiş (yönetici) şekilde yeniden başlatır — bunun için **her açılışta bir kez** Windows Kullanıcı Hesabı Denetimi (UAC) onayı istenir ("Evet" demeniz yeterli).
+`openconnect`'in Windows'ta bir sanal ağ arayüzü (Wintun) oluşturabilmesi için yönetici yetkisi gerekir. Uygulama, admin olarak çalışmıyorsa başlangıçta kendini otomatik olarak yükseltilmiş (yönetici) şekilde yeniden başlatır — bunun için **her açılışta bir kez** UAC onayı istenir ("Evet" demeniz yeterli).
 
 > Not: Görev Zamanlayıcı üzerinden "girişte otomatik, hiç UAC istemeden" çalıştırma da denendi, ancak bazı Windows kurulumlarında (ör. "en yüksek yetkiyle + kullanıcı oturumunda çalıştır" birleşimi) görev sonsuza dek "Queued" durumunda kalıp hiç çalışmıyor — bu, Windows'un görev zamanlayıcısının bilinen bir kısıtı. Bu yüzden daha basit ve güvenilir olan "her açılışta bir UAC onayı" yöntemi kullanılıyor.
+
+### Sorun Giderme: Elle Kurulum
+
+`setup.bat` normalde her şeyi otomatik hallederse de, bir adımda takılırsa (ör. şirket ağında indirme engelleniyorsa) bileşenleri elle de kurabilirsiniz:
+
+- **Python 3.8+**: [python.org](https://www.python.org/downloads/) üzerinden indirip kurun. *(Kurulum sırasında "Add Python to PATH" kutucuğunu işaretleyin.)*
+- **openconnect for Windows (CLI)**: `choco install openconnect-gui` / manuel OpenConnect-GUI installer'ı **sadece GUI'yi kurar, ayrı bir `openconnect.exe` içermez** — bizim otomasyonumuz için işe yaramaz. Gerçek CLI, openconnect projesinin kendi resmi GitLab CI derlemesinden indiriliyor:
+  ```
+  https://gitlab.com/openconnect/openconnect/-/jobs/artifacts/v9.21/raw/openconnect-installer-MinGW64-GnuTLS.exe?job=MinGW64%2FGnuTLS
+  ```
+  Bu dosyayı indirip çalıştırın (`openconnect.exe` genelde `C:\Program Files\OpenConnect\` altına kurulur). Kurulum sonrası klasörü PATH'e ekleyin, ya da `.env` dosyasındaki `OPENCONNECT_EXE` ile tam yolu belirtin.
+
+  > Not: Bu link openconnect'in `v9.21` etiketine bağlı bir GitLab CI artifact'i; ileride süresi dolabilir. Güncel bir sürüm gerekirse: [gitlab.com/openconnect/openconnect/-/pipelines](https://gitlab.com/openconnect/openconnect/-/pipelines) üzerinden istediğiniz etiketin pipeline'ını açıp **"MinGW64/GnuTLS"** job'ının artifact'ini indirin.
 
 ---
 
