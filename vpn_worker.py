@@ -255,23 +255,33 @@ class VPNWorker(threading.Thread):
                 line = output_buffer.strip()
                 if line and not any(p in line.lower() for p in ["password", "parola"]):
                     self.log(f"[VPN] {line}")
+
+                # FortiGate Güvenlik Duvarı Koruması / Hata Mesajları
+                if any(p in line.lower() for p in [
+                    "too many bad login attempts",
+                    "login disabled",
+                    "permission denied",
+                    "could not authenticate to gateway"
+                ]):
+                    if "too many bad login attempts" in line.lower():
+                        self.log("UYARI: FortiGate sunucusu çok fazla deneme nedeniyle geçici olarak kilitlendi (60-120 sn). Bekleniyor...")
+                        self.on_status_change("Sunucu Kilitli (Bekleniyor)", "#eed49f")
+                        time.sleep(45)
+                    else:
+                        self.log("HATA: Gateway kimlik doğrulamasını reddetti (Kullanıcı adı veya şifre hatalı olabilir).")
+                        self.on_status_change("Giriş Başarısız", "#ed8796")
+                    return False
+
+                # Hatalı Mac Parolası
+                if "incorrect password attempt" in line.lower() or "sorry, try again" in line.lower():
+                    self.log("HATA: Girilen Mac yönetici parolası yanlış!")
+                    self.on_status_change("Hatalı Mac Parolası", "#ed8796")
+                    self.config["MAC_SUDO_PASS"] = ""
+                    return False
+
                 output_buffer = ""
             elif len(output_buffer) > 400:
                 output_buffer = output_buffer[-400:]
-
-            # Hatalı Mac Parolası
-            if "incorrect password attempt" in output_buffer or "Sorry, try again" in output_buffer:
-                self.log("HATA: Girilen Mac yönetici parolası yanlış!")
-                self.on_status_change("Hatalı Mac Parolası", "#ed8796")
-                self.config["MAC_SUDO_PASS"] = ""
-                return False
-
-            # FortiGate Güvenlik Duvarı Koruması / Hata Mesajları
-            if any(p in output_buffer.lower() for p in ["too many bad login attempts", "login disabled", "permission denied"]):
-                self.log("UYARI: FortiGate sunucusu çok fazla deneme nedeniyle geçici olarak kilitlendi (60-120 sn). Bekleniyor...")
-                self.on_status_change("Sunucu Kilitli (Bekleniyor)", "#eed49f")
-                time.sleep(30)
-                return False
 
             # Sertifika onayı
             if any(p in output_buffer for p in ["(Y/N)", "(y/n)", "Do you want to continue with this connection?"]):
