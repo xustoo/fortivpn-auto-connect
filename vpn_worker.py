@@ -80,6 +80,7 @@ class VPNWorker(threading.Thread):
                     time.sleep(0.4)
                     if self.process.poll() is None:
                         self.process.kill()
+                    subprocess.run(["sudo", "-n", "pkill", "-TERM", "openfortivpn"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             except Exception:
                 pass
         self.process = None
@@ -190,21 +191,49 @@ class VPNWorker(threading.Thread):
                 self.on_status_change("openfortivpn Eksik", "#ed8796")
                 return False
 
-            if not sudo_pass:
-                test_res = subprocess.run(["sudo", "-n", "true"], capture_output=True)
-                if test_res.returncode != 0:
-                    if self.get_sudo_pass_callback:
-                        self.log("Ağ tüneli oluşturmak için Mac parolası isteniyor...")
-                        sudo_pass = self.get_sudo_pass_callback()
-                        if sudo_pass:
-                            self.config["MAC_SUDO_PASS"] = sudo_pass
+            # sudo yetkisini bağımsız olarak doğrula ve timestamp'i tazele
+            # Böylece openfortivpn stdin'ine ASLA sudo parolası karışmaz!
+            sudo_ok = False
+            test_res = subprocess.run(["sudo", "-n", "true"], capture_output=True)
+            if test_res.returncode == 0:
+                sudo_ok = True
+            elif sudo_pass:
+                auth_res = subprocess.run(
+                    ["sudo", "-S", "-v"],
+                    input=f"{sudo_pass}\n".encode("utf-8"),
+                    capture_output=True
+                )
+                if auth_res.returncode == 0:
+                    sudo_ok = True
+                else:
+                    self.log("HATA: Girilen Mac yönetici parolası geçersiz!")
+                    self.on_status_change("Hatalı Mac Parolası", "#ed8796")
+                    return False
+
+            if not sudo_ok:
+                if self.get_sudo_pass_callback:
+                    self.log("Ağ tüneli oluşturmak için Mac parolası isteniyor...")
+                    sudo_pass = self.get_sudo_pass_callback()
+                    if sudo_pass:
+                        self.config["MAC_SUDO_PASS"] = sudo_pass
+                        auth_res = subprocess.run(
+                            ["sudo", "-S", "-v"],
+                            input=f"{sudo_pass}\n".encode("utf-8"),
+                            capture_output=True
+                        )
+                        if auth_res.returncode == 0:
+                            sudo_ok = True
                         else:
-                            self.log("HATA: Mac parolası girilmedi.")
-                            self.on_status_change("Yetki İptal", "#ed8796")
+                            self.log("HATA: Girilen Mac yönetici parolası geçersiz!")
+                            self.on_status_change("Hatalı Mac Parolası", "#ed8796")
                             return False
+                    else:
+                        self.log("HATA: Mac parolası girilmedi.")
+                        self.on_status_change("Yetki İptal", "#ed8796")
+                        return False
 
             conf_path = self._prepare_openfortivpn_config()
-            cmd = ["sudo", "-S", openfortivpn_bin, "-c", conf_path]
+            cmd = ["sudo", "-n", openfortivpn_bin, "-c", conf_path]
 
         self.on_status_change("Bağlanıyor...", "#8aadf4")
         self.log(f"VPN başlatılıyor: {server} (Kullanıcı: {user})")
@@ -221,14 +250,6 @@ class VPNWorker(threading.Thread):
             self.log(f"VPN süreci başlatılamadı: {e}")
             self.on_status_change("Başlatma Hatası", "#ed8796")
             return False
-
-        if system != "Windows" and sudo_pass:
-            time.sleep(0.2)
-            try:
-                self.process.stdin.write(f"{sudo_pass}\n".encode("utf-8"))
-                self.process.stdin.flush()
-            except Exception:
-                pass
 
         token_requested = False
         output_buffer = ""
@@ -264,9 +285,12 @@ class VPNWorker(threading.Thread):
                     "could not authenticate to gateway"
                 ]):
                     if "too many bad login attempts" in line.lower():
-                        self.log("UYARI: FortiGate sunucusu çok fazla deneme nedeniyle geçici olarak kilitlendi (60-120 sn). Bekleniyor...")
+                        self.log("UYARI: FortiGate sunucusu çok fazla deneme nedeniyle kilitlendi (75 sn). Bekleniyor...")
                         self.on_status_change("Sunucu Kilitli (Bekleniyor)", "#eed49f")
-                        time.sleep(45)
+                        time.sleep(75)
+                    elif token_requested:
+                        self.log("HATA: Gateway 2FA doğrulamasını reddetti (Kod süresi dolmuş veya hatalı olabilir).")
+                        self.on_status_change("2FA Reddedildi", "#ed8796")
                     else:
                         self.log("HATA: Gateway kimlik doğrulamasını reddetti (Kullanıcı adı veya şifre hatalı olabilir).")
                         self.on_status_change("Giriş Başarısız", "#ed8796")
