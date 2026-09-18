@@ -7,6 +7,12 @@ __pycache__/
 *$py.class
 *.log
 
+# Sanal ortamlar
+.venv/
+venv/
+ENV/
+env/
+
 # Geçici dosyalar
 *.conf
 .DS_Store

@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$DIR" || exit 1
+export PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+if [ -f "$DIR/.venv/bin/python3" ]; then
+    exec "$DIR/.venv/bin/python3" main.py
+else
+    exec python3 main.py
+fi

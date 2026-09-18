@@ -21,6 +21,9 @@ Hem **macOS** (`openfortivpn` tabanlı) hem de **Windows** (`FortiSSLVPNcli.exe`
 
 ```text
 FortiVPN/
+├── install.sh              # macOS/Linux için tek tıkla/tek komutla otomatik kurulum aracı
+├── Kurulum.command         # macOS Finder üzerinden çift tıklanabilir kurulum sihirbazı
+├── install.bat             # Windows için otomatik sanal ortam ve kısayol kurulum aracı
 ├── main.py                 # Masaüstü grafik arayüzü (Tkinter tabanlı GUI)
 ├── vpn_worker.py           # Arka plan VPN tünel ve süreç yönetim motoru
 ├── imap_client.py          # Carbonio / IMAP 2FA e-posta tarama ve kod çıkarma modülü
@@ -33,23 +36,50 @@ FortiVPN/
 
 ---
 
-## macOS Kurulum ve Kullanım Kılavuzu
+## Hızlı ve Otomatik Kurulum (Önerilen)
 
-### 1. Ön Koşullar
+### macOS (Tek Komutla Kurulum)
+
+Terminalinizi açıp aşağıdaki komutu yapıştırmanız yeterlidir:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/xustoo/fortivpn-auto-connect/main/install.sh | bash
+```
+
+Bu komut:
+- Gerekli sistem bağımlılıklarını (`openfortivpn`, `python3`) kontrol eder ve kurar.
+- İzole sanal ortamı (`.venv`) oluşturur ve kütüphaneleri yükler.
+- `.env` yapılandırma dosyasını hazır eder.
+- Masaüstünüze çift tıklanabilir **FortiVPN.app** ve **FortiVPN_Baslat.command** kısayollarını yerleştirir.
+
+*Alternatif Olarak:* Projeyi indirip klasör içindeki **`Kurulum.command`** dosyasına çift tıklayarak da sihirbazı başlatabilirsiniz.
+
+---
+
+### Windows (Otomatik Kurulum)
+
+Projeyi indirdikten sonra klasördeki **`install.bat`** dosyasına çift tıklayın. Sanal ortamınız kurulacak ve Masaüstünüze `FortiVPN_Baslat.bat` kısayolu eklenecektir.
+
+---
+
+## Manuel Kurulum ve Kullanım Kılavuzu
+
+### macOS Manuel Kurulum
+
+#### 1. Ön Koşullar
 
 macOS üzerinde tünel arabirimini oluşturmak için `openfortivpn` ve `Python 3` gereklidir:
 
 ```bash
-# Homebrew yüklü değilse Homebrew kurun, ardından:
 brew install openfortivpn python
 ```
 
-### 2. Projeyi İndirme ve Bağımlılıkları Yükleme
+#### 2. Projeyi İndirme ve Bağımlılıkları Yükleme
 
 ```bash
-git clone <REPO_URL>
-cd FortiVPN
-pip3 install -r requirements.txt
+git clone https://github.com/xustoo/fortivpn-auto-connect.git
+cd fortivpn-auto-connect
+./install.sh
 ```
 
 ### 3. Yapılandırma (`.env` Dosyası)
