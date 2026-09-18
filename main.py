@@ -17,6 +17,8 @@ from dotenv import load_dotenv, set_key
 
 # Modülleri içe aktar
 from vpn_worker import VPNWorker
+from core import config as core_config
+from core import elevation
 
 ENV_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
 load_dotenv(ENV_PATH)
@@ -113,23 +115,19 @@ class FortiVPNApp(tk.Tk):
         self.after(800, self.auto_start_on_launch)
 
     def load_config(self) -> dict:
-        """Yapılandırma değişkenlerini .env dosyasından yükler."""
-        return {
-            "VPN_SERVER": os.getenv("VPN_SERVER", "vpn.kolaysoft.com.tr:10321"),
-            "VPN_USER": os.getenv("VPN_USER", "salihkirlioglu"),
-            "VPN_PASS": os.getenv("VPN_PASS", ""),
-            "IMAP_SERVER": os.getenv("IMAP_SERVER", "mail.kolaysoft.com.tr"),
-            "IMAP_PORT": os.getenv("IMAP_PORT", "993"),
-            "IMAP_USER": os.getenv("IMAP_USER", "salih.kirlioglu@kolaysoft.com.tr"),
-            "IMAP_PASS": os.getenv("IMAP_PASS", ""),
-            "PING_TARGET": os.getenv("PING_TARGET", "off"),
-            "PING_INTERVAL": os.getenv("PING_INTERVAL", "15"),
-            "MAX_PING_FAILS": os.getenv("MAX_PING_FAILS", "3"),
-            "RECONNECT_DELAY": os.getenv("RECONNECT_DELAY", "15"),
-            "MAIL_TIMEOUT": os.getenv("MAIL_TIMEOUT", "90"),
-            "MAC_SUDO_PASS": os.getenv("MAC_SUDO_PASS", ""),
-            "TRUSTED_CERT": os.getenv("TRUSTED_CERT", "982454617fafe06a8268d7f663b1926b6d40cbc73dbdc47cc4aa0e2886e06305")
+        """Yapılandırma değişkenlerini core.config üzerinden (.env) yükler."""
+        cfg = core_config.load()
+        placeholder_defaults = {
+            "VPN_SERVER": "vpn.kolaysoft.com.tr:10321",
+            "VPN_USER": "salihkirlioglu",
+            "IMAP_SERVER": "mail.kolaysoft.com.tr",
+            "IMAP_USER": "salih.kirlioglu@kolaysoft.com.tr",
+            "TRUSTED_CERT": "982454617fafe06a8268d7f663b1926b6d40cbc73dbdc47cc4aa0e2886e06305",
         }
+        for key, val in placeholder_defaults.items():
+            if not cfg.get(key):
+                cfg[key] = val
+        return cfg
 
     def setup_styles(self):
         self.style = ttk.Style(self)
@@ -551,8 +549,15 @@ class FortiVPNApp(tk.Tk):
             ("IMAP E-posta Adresi", "IMAP_USER", False),
             ("IMAP E-posta Parolası", "IMAP_PASS", True),
             ("Canlılık Ping Hedefi (off önerilir)", "PING_TARGET", False),
-            ("Mac Sudo Parolası (Ağ tüneli için)", "MAC_SUDO_PASS", True)
         ]
+
+        if platform.system() == "Windows":
+            fields += [
+                ("openconnect.exe Yolu (boşsa PATH'te aranır)", "OPENCONNECT_EXE", False),
+                ("VPN Sunucu Sertifikası (boşsa otomatik yakalanır)", "VPN_SERVERCERT", False),
+            ]
+        else:
+            fields.append(("Mac Sudo Parolası (Ağ tüneli için)", "MAC_SUDO_PASS", True))
 
         entries = {}
         form_frame = tk.Frame(win, bg=THEME["bg_dark"], padx=20)
@@ -618,5 +623,20 @@ class FortiVPNApp(tk.Tk):
 
 
 if __name__ == "__main__":
-    app = FortiVPNApp()
-    app.mainloop()
+    try:
+        if not elevation.ensure_elevated_and_relaunch_if_needed():
+            sys.exit(0)
+
+        app = FortiVPNApp()
+        app.mainloop()
+    except SystemExit:
+        raise
+    except Exception:
+        # pythonw.exe (Görev Zamanlayıcı ile sessiz başlatma) hiçbir konsola
+        # bağlı değil; beklenmeyen bir hata sessizce kaybolmasın diye buraya yazılır.
+        import traceback
+        crash_log = os.path.join(os.path.dirname(os.path.abspath(__file__)), "crash.log")
+        with open(crash_log, "a", encoding="utf-8") as f:
+            f.write(f"\n--- {time.strftime('%Y-%m-%d %H:%M:%S')} ---\n")
+            traceback.print_exc(file=f)
+        raise

@@ -10,3 +10,6 @@ __pycache__/
 # Geçici dosyalar
 *.conf
 .DS_Store
+
+# IDE
+.idea/
