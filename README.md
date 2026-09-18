@@ -28,7 +28,8 @@ FortiVPN/
 ├── .env.example            # Örnek yapılandırma şablonu
 ├── .gitignore              # Hassas parolaların GitHub'a gitmesini engelleyen dosya
 ├── FortiVPN_Baslat.command # macOS hızlı başlatıcı betiği
-└── FortiVPN.app            # macOS çift tıklanabilir yerel uygulama paketi
+├── FortiVPN.app            # macOS çift tıklanabilir yerel uygulama paketi
+└── setup.bat               # Windows hızlı kurulum betiği (bağımlılıklar + openconnect)
 ```
 
 ---
@@ -99,6 +100,16 @@ Uygulamayı 3 farklı şekilde başlatabilirsiniz:
 ## Windows Kurulum ve Kullanım Kılavuzu
 
 Windows'ta FortiClient uygulamasının kurulu olmasına **gerek yoktur**. Bağlantı, macOS'taki `openfortivpn`'in Windows karşılığı olan açık kaynaklı **openconnect** istemcisiyle kurulur (`--protocol=fortinet`).
+
+### Hızlı Kurulum (`setup.bat`)
+
+Aşağıdaki adımları tek tek yapmak istemiyorsanız, proje kökündeki `setup.bat`'ı çalıştırın:
+
+```cmd
+setup.bat
+```
+
+Bu betik sırasıyla: `requirements.txt`'i kurar, `.env` yoksa `.env.example`'dan oluşturur, `openconnect` kurulu değilse resmi installer'ı (v9.21, wintun sürücüsü dahil) indirip kurmayı teklif eder. Kurulum yönetici yetkisi istediği için bir UAC penceresi çıkabilir. Sonrasında yalnızca `.env` dosyasını kendi bilgilerinizle doldurup `python main.py` ile çalıştırmanız yeterli — aşağıdaki 1-4 numaralı adımlar bu betiğin manuel karşılığıdır.
 
 ### 1. Ön Koşullar
 
