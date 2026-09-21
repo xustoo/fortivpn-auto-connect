@@ -13,6 +13,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext, simpledialog
 import platform
 import threading
+import tempfile
 from dotenv import load_dotenv, set_key
 
 # Modülleri içe aktar
@@ -617,6 +618,49 @@ class FortiVPNApp(tk.Tk):
         sys.exit(0)
 
 
+def acquire_single_instance_lock():
+    """Aynı anda birden fazla FortiVPN kopyasının çalışmasını engeller."""
+    lock_path = os.path.join(tempfile.gettempdir(), "fortivpn_single_instance.lock")
+    try:
+        if platform.system() == "Windows":
+            import msvcrt
+            f = open(lock_path, "w")
+            try:
+                msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
+                return f
+            except (IOError, OSError):
+                return None
+        else:
+            import fcntl
+            f = open(lock_path, "w")
+            try:
+                fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                return f
+            except (IOError, BlockingIOError, OSError):
+                return None
+    except Exception:
+        return None
+
+
 if __name__ == "__main__":
-    app = FortiVPNApp()
-    app.mainloop()
+    lock_file = acquire_single_instance_lock()
+    if lock_file is None:
+        root = tk.Tk()
+        root.withdraw()
+        messagebox.showwarning(
+            "FortiVPN Zaten Çalışıyor",
+            "FortiVPN arka planda zaten açık durumdadır.\n\n"
+            "Aynı anda birden fazla uygulamanın çalışması VPN sunucusunun "
+            "oturumunuzu sürekli sonlandırmasına neden olur. Lütfen açık olan pencereyi kullanın."
+        )
+        sys.exit(0)
+
+    try:
+        app = FortiVPNApp()
+        app.mainloop()
+    finally:
+        try:
+            if lock_file:
+                lock_file.close()
+        except Exception:
+            pass
