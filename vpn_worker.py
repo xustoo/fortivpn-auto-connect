@@ -44,6 +44,7 @@ class VPNWorker(threading.Thread):
         self.trusted_cert: str = self.config.get("TRUSTED_CERT", "")
         self.is_connected = False
         self.temp_config_path = None
+        self.discovered_keepalive_ip: Optional[str] = None
 
     def log(self, msg: str):
         self.on_log(msg)
@@ -479,9 +480,11 @@ class VPNWorker(threading.Thread):
                     "Tunnel is up and running.",
                     "Status: Connected",
                     "Tunnel running",
-                    "ip-up: ppp0",
-                    "Interface ppp0 is UP",
+                    "ip-up: ppp",
+                    "Interface ppp",
+                    "Negotiation complete",
                     "Adding VPN nameservers",
+                    "publish_entry SCDSet() failed: Success!",
                     # openconnect (Windows)
                     "Configured as",
                     "Connected as",
@@ -495,49 +498,32 @@ class VPNWorker(threading.Thread):
                 ]
             )
 
+            # Keşfedilen DNS/Gateway IP adresini yakala
+            ns_match = re.search(r"ns\s*\[([0-9.]+)", output_buffer)
+            if ns_match:
+                self.discovered_keepalive_ip = ns_match.group(1)
+
             if is_connected_msg and not connected:
                 connected = True
                 self.is_connected = True
                 self.on_status_change("Bağlandı", "#a6da95")
                 self.on_connected()
                 self.log(">>> TEBRİKLER: Kolaysoft VPN Tüneli Başarıyla Açıldı! <<<")
-                break
+                self.log("VPN Tüneli devrede. Bağlantı ve çıktı akışı sürekli canlı tutuluyor.")
 
-        # --- AŞAMA 2: CANLILIK VE SÜREÇ DENETİMİ (KEEP-ALIVE) ---
-        if connected and not self._stop_event.is_set():
-            ping_target_ip = self.config.get("PING_TARGET", "off").strip().lower()
-            ping_interval = int(self.config.get("PING_INTERVAL", "15"))
-            enable_ping = ping_target_ip not in ["off", "none", "no", "", "10.0.0.1"]
+                # FortiGate boşta kalma (idle) zaman aşımını önlemek için arka plan canlılık sinyali başlat
+                def keepalive_worker():
+                    target = getattr(self, "discovered_keepalive_ip", None) or "172.15.190.100"
+                    while not self._stop_event.is_set() and self.process and self.process.poll() is None:
+                        # 8 saniyede bir tünel üzerinden tek bir kontrol paketi göndererek tüneli aktif tut
+                        self.ping_target(target)
+                        for _ in range(8):
+                            if self._stop_event.is_set() or not self.process or self.process.poll() is not None:
+                                break
+                            time.sleep(1)
 
-            if enable_ping:
-                self.log(f"Canlılık pingi aktif: {ping_target_ip} ({ping_interval}s)")
-            else:
-                self.log("VPN Tüneli devrede. Bağlantı arka planda sürekli canlı tutuluyor.")
-
-            consecutive_fails = 0
-            max_fails = int(self.config.get("MAX_PING_FAILS", "3"))
-
-            while not self._stop_event.is_set():
-                if self.process.poll() is not None:
-                    self.log("VPN süreci kapandı.")
-                    break
-
-                if enable_ping:
-                    if self.ping_target(ping_target_ip):
-                        if consecutive_fails > 0:
-                            self.log("VPN ping normale döndü.")
-                        consecutive_fails = 0
-                    else:
-                        consecutive_fails += 1
-                        self.log(f"Ping yanıt vermedi ({consecutive_fails}/{max_fails})")
-                        if consecutive_fails >= max_fails:
-                            self.log("KRİTİK: VPN tüneli ping yanıtı vermedi!")
-                            break
-
-                for _ in range(ping_interval):
-                    if self._stop_event.is_set():
-                        break
-                    time.sleep(1)
+                t_keepalive = threading.Thread(target=keepalive_worker, daemon=True)
+                t_keepalive.start()
 
         self.cleanup_temp_files()
         return connected
