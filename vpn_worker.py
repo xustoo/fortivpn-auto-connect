@@ -81,7 +81,8 @@ class VPNWorker(threading.Thread):
                         subprocess.run(
                             ["taskkill", "/F", "/T", "/PID", str(self.process.pid)],
                             stdout=subprocess.DEVNULL,
-                            stderr=subprocess.DEVNULL
+                            stderr=subprocess.DEVNULL,
+                            creationflags=subprocess.CREATE_NO_WINDOW
                         )
                 else:
                     self.process.terminate()
@@ -101,12 +102,18 @@ class VPNWorker(threading.Thread):
         timeout_val = "1000" if is_win else "1"
 
         cmd = ["ping", param, "1", timeout_param, timeout_val, host]
+        run_kwargs = {}
+        if is_win:
+            # Konsolsuz (pythonw) süreçte her ping için conhost penceresi
+            # yanıp sönmesin diye - bkz. Popen'daki CREATE_NO_WINDOW kullanımı.
+            run_kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
         try:
             res = subprocess.run(
                 cmd,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
-                timeout=2
+                timeout=2,
+                **run_kwargs
             )
             return res.returncode == 0
         except Exception:
