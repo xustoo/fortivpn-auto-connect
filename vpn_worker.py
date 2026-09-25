@@ -318,12 +318,14 @@ class VPNWorker(threading.Thread):
         connected = False
 
         while not self._stop_event.is_set():
-            if self.process.poll() is not None:
-                self.log(f"VPN istemcisi kapandı (Çıkış Kodu: {self.process.returncode})")
+            proc = self.process
+            if proc is None or proc.poll() is not None:
+                exit_code = proc.returncode if proc else "N/A"
+                self.log(f"VPN istemcisi kapandı (Çıkış Kodu: {exit_code})")
                 break
 
             try:
-                raw_byte = self.process.stdout.read(1)
+                raw_byte = proc.stdout.read(1)
             except Exception:
                 break
 
@@ -518,13 +520,40 @@ class VPNWorker(threading.Thread):
                 self.log(">>> TEBRİKLER: Kolaysoft VPN Tüneli Başarıyla Açıldı! <<<")
                 self.log("VPN Tüneli devrede. Bağlantı ve çıktı akışı sürekli canlı tutuluyor.")
 
-                # FortiGate boşta kalma (idle) zaman aşımını önlemek için arka plan canlılık sinyali başlat
+                # FortiGate boşta kalma (idle) zaman aşımını önlemek için ve tünelin
+                # gerçekten canlı olduğunu doğrulamak için arka planda canlılık sinyali başlat.
                 def keepalive_worker():
-                    target = getattr(self, "discovered_keepalive_ip", None) or "172.15.190.100"
+                    configured_target = (self.config.get("PING_TARGET") or "").strip()
+                    if configured_target and configured_target.lower() != "off":
+                        target = configured_target
+                    else:
+                        target = getattr(self, "discovered_keepalive_ip", None) or "172.15.190.100"
+                    try:
+                        interval = max(1, int(self.config.get("PING_INTERVAL", "15")))
+                    except (TypeError, ValueError):
+                        interval = 15
+                    try:
+                        max_fails = max(1, int(self.config.get("MAX_PING_FAILS", "3")))
+                    except (TypeError, ValueError):
+                        max_fails = 3
+
+                    consecutive_fails = 0
                     while not self._stop_event.is_set() and self.process and self.process.poll() is None:
-                        # 8 saniyede bir tünel üzerinden tek bir kontrol paketi göndererek tüneli aktif tut
-                        self.ping_target(target)
-                        for _ in range(8):
+                        # Tünel üzerinden tek bir kontrol paketi göndererek hem tüneli aktif
+                        # tut hem de gerçekten yanıt verip vermediğini doğrula. openconnect
+                        # süreci ağ koptuğunda kendiliğinden kapanmayabilir; bu yüzden ardışık
+                        # ping hataları, tünelin sessizce öldüğünün tek belirtisi olabilir.
+                        if self.ping_target(target):
+                            consecutive_fails = 0
+                        else:
+                            consecutive_fails += 1
+                            self.log(f"UYARI: Canlılık pingi yanıt vermedi ({consecutive_fails}/{max_fails}) - hedef: {target}")
+                            if consecutive_fails >= max_fails:
+                                self.log("HATA: Tünel yanıt vermiyor, bağlantının koptuğu kabul edilip yeniden bağlanılacak.")
+                                self.kill_process()
+                                break
+
+                        for _ in range(interval):
                             if self._stop_event.is_set() or not self.process or self.process.poll() is not None:
                                 break
                             time.sleep(1)

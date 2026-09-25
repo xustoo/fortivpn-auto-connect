@@ -549,7 +549,7 @@ class FortiVPNApp(tk.Tk):
             ("IMAP Portu (SSL)", "IMAP_PORT", False),
             ("IMAP E-posta Adresi", "IMAP_USER", False),
             ("IMAP E-posta Parolası", "IMAP_PASS", True),
-            ("Canlılık Ping Hedefi (off önerilir)", "PING_TARGET", False),
+            ("Canlılık Ping Hedefi (boşsa/off ise tünel IP'si otomatik kullanılır)", "PING_TARGET", False),
         ]
 
         if platform.system() == "Windows":
