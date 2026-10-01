@@ -1,13 +1,16 @@
 """Windows-only: relaunch the app elevated so `openconnect` can create the
 Wintun adapter it needs (this is Windows' equivalent of macOS's `sudo`).
 
-A Task Scheduler task configured "run with highest privileges at logon" was
-tried first to avoid a UAC prompt on every launch, but on real hardware that
-combination (interactive-token logon + highest privileges) can get stuck
-"Queued" forever and never actually run the action - a known rough edge of
-that Task Scheduler logon mode, not something this app can route around. So
-instead: relaunch elevated via a plain UAC prompt every time the app isn't
-already running elevated. Simple and proven to work.
+Normally this path is not taken: Windows\\Kurulum.bat registers (with a single
+UAC prompt, via Windows\\register_task.ps1) an on-demand Task Scheduler task
+that runs with highest privileges, and the desktop shortcut starts it with
+`schtasks /run`, so the app is already elevated when it starts. The task is
+registered with battery restrictions disabled; otherwise it can sit "Queued"
+on laptops running on battery.
+
+This module is the fallback: if the task is missing or the app was started
+by hand (`python main.py`) without admin rights, relaunch elevated via a
+plain UAC prompt.
 """
 from __future__ import annotations
 
