@@ -110,11 +110,28 @@ echo openconnect zaten kurulu.
 :oc_done
 
 echo.
+echo --- Yonetici gorevi (UAC yalnizca simdi, bir kez istenecek) ---
+set "PYEXE="
+"%PYLAUNCH%" -c "import sys;print(sys.executable)" > "%TEMP%\fv_pyexe.txt" 2>nul
+if exist "%TEMP%\fv_pyexe.txt" (
+    set /p PYEXE=<"%TEMP%\fv_pyexe.txt"
+    del /f /q "%TEMP%\fv_pyexe.txt" >nul 2>nul
+)
+set "TASKOK=0"
+if defined PYEXE (
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%PROJECT_DIR%\Windows\register_task.ps1" -PythonExe "%PYEXE%" -ProjectDir "%PROJECT_DIR%"
+    if not errorlevel 1 set "TASKOK=1"
+)
+if "%TASKOK%"=="0" echo UYARI: gorev kaydedilemedi, kisayol her acilista UAC isteyecek.
+
+echo.
 echo --- Masaustu kisayolu ---
 set "LAUNCHER=%USERPROFILE%\Desktop\FortiVPN_Baslat.bat"
 (
 echo @echo off
 echo cd /d "%PROJECT_DIR%"
+echo schtasks /run /tn "FortiVPN-AutoConnect" ^>nul 2^>nul
+echo if %%errorlevel%%==0 exit /b 0
 echo "%PYLAUNCH%" main.py
 ) > "%LAUNCHER%"
 echo Kisayol olusturuldu: %LAUNCHER%
@@ -124,7 +141,7 @@ echo Kurulum tamamlandi. Sonraki adimlar:
 echo   1) .env dosyasini VPN ve IMAP bilgilerinizle doldurun
 echo   2) Masaustundeki 'FortiVPN_Baslat.bat' dosyasina cift tiklayin
 echo      (veya bu klasorde 'python main.py' calistirin)
-echo      Yonetici yetkisi gerekir - UAC istemine "Evet" deyin.
+echo      Kurulumda bir kez UAC onayi verildiyse kisayol artik UAC sormaz.
 echo.
 pause
 exit /b 0
