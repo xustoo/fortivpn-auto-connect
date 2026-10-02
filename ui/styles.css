@@ -141,8 +141,10 @@ body[data-chrome="custom"] .titlebar {
   -webkit-app-region: drag;
   app-region: drag;
 }
-.tb-left { display: flex; align-items: center; gap: 4px; margin-left: -6px; }
-.tb-nav { width: 32px; height: 28px; border-radius: var(--r-sm); -webkit-app-region: no-drag; app-region: no-drag; }
+/* Menü düğmesi menü ikonlarıyla aynı eksende: x = 5px (.rail padding) + 36/2 = 23px.
+   .titlebar 12px iç boşluğu −7px ile 5px'e çekilir. */
+.tb-left { display: flex; align-items: center; gap: 6px; margin-left: -7px; }
+.tb-btn.tb-nav { width: 36px; height: 28px; border-radius: var(--r-sm); -webkit-app-region: no-drag; app-region: no-drag; }
 .tb-nav[aria-pressed="true"] { color: var(--accent); }
 .tb-title { display: flex; align-items: center; gap: 8px; font-size: 12px; line-height: 16px; color: var(--text-2); font-weight: 600; }
 .tb-title .ico { color: var(--accent); }
