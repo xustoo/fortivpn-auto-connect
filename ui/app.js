@@ -274,6 +274,21 @@
   });
   $("#btnCancel").addEventListener("click", () => { if (S.config) fillForm(S.config); go("connect"); });
 
+  /* ---------- Show / hide rail ----------
+     Menü CSS ile kayarak girer/çıkar; pencere boyutu sabit, içerik boşalan alana yayılır. */
+  let railHidden = false;
+  function setRail(hidden, user) {
+    railHidden = hidden;
+    const t = $("#railToggle"), label = hidden ? "Menüyü göster (Ctrl+B)" : "Menüyü gizle (Ctrl+B)";
+    t.setAttribute("aria-pressed", String(!hidden)); t.setAttribute("aria-label", label.split(" (")[0]); t.title = label;
+    body.dataset.rail = hidden ? "hidden" : "full";
+    if (user) { try { localStorage.setItem("rail", hidden ? "hidden" : "full"); } catch (_) {} }
+  }
+  const toggleRail = () => setRail(!railHidden, true);
+  $("#railToggle").addEventListener("click", toggleRail);
+  document.addEventListener("keydown", e => { if (e.ctrlKey && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "b") { e.preventDefault(); toggleRail(); } });
+  try { setRail(localStorage.getItem("rail") === "hidden", false); } catch (_) {}
+
   /* ---------- Window chrome (custom variant) ---------- */
   $("#tbMin").addEventListener("click", () => { const a = api(); a.minimize && a.minimize(); });
   $("#tbClose").addEventListener("click", () => { const a = api(); a.close && a.close(); });
@@ -324,7 +339,7 @@
   /* ---------- Boot ---------- */
   function boot() {
     body.dataset.os = q.get("os") || (/Mac/i.test(navigator.platform) ? "mac" : "win");
-    body.dataset.chrome = q.get("chrome") || "native";
+    body.dataset.chrome = q.get("chrome") || "custom";
     if (q.get("motion") === "off") body.dataset.motion = "off";
 
     Promise.resolve(api().get_config()).then(fillForm);

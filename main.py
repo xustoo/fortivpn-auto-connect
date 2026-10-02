@@ -34,7 +34,7 @@ APP_DIR = Path(__file__).resolve().parent
 UI_DIR = APP_DIR / "ui"
 
 WINDOW_TITLE = "FortiVPN"
-WINDOW_SIZE = (720, 460)
+WINDOW_SIZE = (720, 492)  # 460 içerik + 32 özel başlık çubuğu (ui/styles.css)
 WINDOW_BG = "#0B1220"
 
 # ui/app.js alan adı -> .env anahtarı
@@ -319,6 +319,8 @@ def run_ui(auto_connect: bool = True, debug: bool = False) -> None:
         width=WINDOW_SIZE[0],
         height=WINDOW_SIZE[1],
         resizable=False,
+        frameless=True,    # başlık çubuğunu ui/index.html'deki .titlebar çizer
+        easy_drag=False,   # sürükleme yalnızca .pywebview-drag-region'dan
         background_color=WINDOW_BG,
         text_select=False,
     )
