@@ -163,7 +163,7 @@ Windows\Kurulum.bat
 - `.env` yoksa `.env.example`'dan oluşturur.
 - `openconnect` kurulu değilse resmi installer'ı (v9.21, wintun sürücüsü dahil) indirmeden önce dosya boyutunu ve SHA256 özetini gösterip kurmayı teklif eder.
 
-Python ve openconnect kurulumları yönetici yetkisi isteyebileceğinden birden fazla Windows Kullanıcı Hesabı Denetimi (UAC) penceresi çıkabilir, "Evet" demeniz yeterli.
+openconnect kurulumu ve zamanlanmış görev kaydı tek bir yönetici adımında yapılır; bu adımda **bir kez** Windows Kullanıcı Hesabı Denetimi (UAC) penceresi çıkar, "Evet" demeniz yeterli. Pencere arkada kalırsa görev çubuğunda yanıp sönen simgeye tıklayın. (Python'u otomatik kurdurursanız ayrıca kendi kurulumu da UAC isteyebilir.)
 
 ### 2. Yapılandırma (`.env` Dosyası)
 

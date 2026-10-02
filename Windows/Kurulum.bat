@@ -66,6 +66,7 @@ if not exist ".env" (
 
 echo.
 echo --- openconnect (VPN istemcisi) ---
+set "OCINSTALL="
 where openconnect >nul 2>nul
 if %errorlevel%==0 goto oc_ok
 if exist "%ProgramFiles%\OpenConnect\openconnect.exe" goto oc_ok
@@ -96,10 +97,11 @@ if defined OCHASH (
     echo   ^(gitlab.com/openconnect/openconnect/-/pipelines uzerinden dogrulayabilirsiniz^)
 )
 
-echo Installer baslatiliyor (yonetici onayi (UAC) isteyebilir, wintun surucusunu de kurar)...
-"%OCEXE%" /S
-timeout /t 5 /nobreak >nul
-if exist "%ProgramFiles%\OpenConnect\openconnect.exe" ( echo openconnect kuruldu. ) else ( echo NOT: kurulum tamamlanmamis olabilir - .env icinde OPENCONNECT_EXE ile yolu belirtin. )
+rem Installer yonetici yetkisi ister (wintun surucusu). Burada dogrudan calistirmak
+rem UAC'yi arka planda acabiliyor; bunun yerine asagidaki yonetici adiminda
+rem gorev kaydi ile birlikte TEK UAC ile kurulur.
+set "OCINSTALL=1"
+echo Indirme tamam. Kurulum asagidaki yonetici adiminda yapilacak.
 goto oc_done
 
 :oc_skip
@@ -110,7 +112,10 @@ echo openconnect zaten kurulu.
 :oc_done
 
 echo.
-echo --- Yonetici gorevi (UAC yalnizca simdi, bir kez istenecek) ---
+echo --- Yonetici adimi (UAC yalnizca simdi, bir kez istenecek) ---
+if defined OCINSTALL echo   - openconnect kurulacak (wintun surucusu dahil)
+echo   - FortiVPN-AutoConnect gorevi kaydedilecek
+echo   UAC penceresi arkada kalirsa gorev cubugunda yanip sonen simgeye tiklayin.
 set "PYEXE="
 "%PYLAUNCH%" -c "import sys;print(sys.executable)" > "%TEMP%\fv_pyexe.txt" 2>nul
 if exist "%TEMP%\fv_pyexe.txt" (
@@ -118,9 +123,19 @@ if exist "%TEMP%\fv_pyexe.txt" (
     del /f /q "%TEMP%\fv_pyexe.txt" >nul 2>nul
 )
 set "TASKOK=0"
-if defined PYEXE (
-    powershell -NoProfile -ExecutionPolicy Bypass -File "%PROJECT_DIR%\Windows\register_task.ps1" -PythonExe "%PYEXE%" -ProjectDir "%PROJECT_DIR%"
-    if not errorlevel 1 set "TASKOK=1"
+set "PSARGS="
+if defined PYEXE set PSARGS=-PythonExe "%PYEXE%" -ProjectDir "%PROJECT_DIR%"
+if defined OCINSTALL set PSARGS=%PSARGS% -OpenConnectInstaller "%OCEXE%"
+if defined PSARGS (
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%PROJECT_DIR%\Windows\register_task.ps1" %PSARGS%
+    if defined PYEXE if not errorlevel 1 set "TASKOK=1"
+)
+if defined OCINSTALL (
+    if exist "%ProgramFiles%\OpenConnect\openconnect.exe" (
+        echo openconnect kuruldu.
+    ) else (
+        echo NOT: openconnect kurulumu tamamlanmadi - .env icinde OPENCONNECT_EXE ile yolu belirtin ya da Kurulum.bat'i tekrar calistirin.
+    )
 )
 if "%TASKOK%"=="0" echo UYARI: gorev kaydedilemedi, kisayol her acilista UAC isteyecek.
 
