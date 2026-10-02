@@ -529,34 +529,38 @@ class VPNWorker(threading.Thread):
                 # gerçekten canlı olduğunu doğrulamak için arka planda canlılık sinyali başlat.
                 def keepalive_worker():
                     configured_target = (self.config.get("PING_TARGET") or "").strip()
-                    if configured_target and configured_target.lower() != "off":
+                    is_dummy = configured_target.lower() in ["off", "none", "no", "", "10.0.0.1", "10.10.0.1"]
+                    if not is_dummy:
                         target = configured_target
+                        enforce_kill = True
                     else:
                         target = getattr(self, "discovered_keepalive_ip", None) or "172.15.190.100"
+                        enforce_kill = False
+
                     try:
-                        interval = max(1, int(self.config.get("PING_INTERVAL", "15")))
+                        interval = max(5, int(self.config.get("PING_INTERVAL", "15")))
                     except (TypeError, ValueError):
                         interval = 15
                     try:
-                        max_fails = max(1, int(self.config.get("MAX_PING_FAILS", "3")))
+                        max_fails = max(3, int(self.config.get("MAX_PING_FAILS", "3")))
                     except (TypeError, ValueError):
                         max_fails = 3
 
                     consecutive_fails = 0
                     while not self._stop_event.is_set() and self.process and self.process.poll() is None:
-                        # Tünel üzerinden tek bir kontrol paketi göndererek hem tüneli aktif
-                        # tut hem de gerçekten yanıt verip vermediğini doğrula. openconnect
-                        # süreci ağ koptuğunda kendiliğinden kapanmayabilir; bu yüzden ardışık
-                        # ping hataları, tünelin sessizce öldüğünün tek belirtisi olabilir.
+                        # Tünel üzerinden periyodik kontrol paketi göndererek tünel NAT tablosunu
+                        # aktif tut. Yalnızca kullanıcı bilerek özel bir hedef belirttiyse (enforce_kill=True)
+                        # ve ardışık başarısızlık limiti aşıldıysa tünel yeniden başlatılır.
                         if self.ping_target(target):
                             consecutive_fails = 0
                         else:
                             consecutive_fails += 1
-                            self.log(f"UYARI: Canlılık pingi yanıt vermedi ({consecutive_fails}/{max_fails}) - hedef: {target}")
-                            if consecutive_fails >= max_fails:
-                                self.log("HATA: Tünel yanıt vermiyor, bağlantının koptuğu kabul edilip yeniden bağlanılacak.")
-                                self.kill_process()
-                                break
+                            if enforce_kill:
+                                self.log(f"UYARI: Canlılık pingi yanıt vermedi ({consecutive_fails}/{max_fails}) - hedef: {target}")
+                                if consecutive_fails >= max_fails:
+                                    self.log("HATA: Tünel yanıt vermiyor, bağlantının koptuğu kabul edilip yeniden bağlanılacak.")
+                                    self.kill_process()
+                                    break
 
                         for _ in range(interval):
                             if self._stop_event.is_set() or not self.process or self.process.poll() is not None:
