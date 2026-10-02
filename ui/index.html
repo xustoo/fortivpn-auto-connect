@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=720, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>FortiVPN</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body data-state="idle" data-phase="idle" data-screen="connect" data-os="win" data-chrome="custom">
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-power" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v8"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/></symbol>
+    <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z"/><path d="M12 8.5v3.5"/><path d="M9.6 10.1a3.4 3.4 0 1 0 4.8 0"/></symbol>
+    <symbol id="i-terminal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3"/><path d="M13 15h4"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M6 7l1 13h10l1-13"/><path d="M9 7V4h6v3"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="M7 10l5 5 5-5"/><path d="M5 20h14"/></symbol>
+    <symbol id="i-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-eye-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3 3.9"/><path d="M6.6 6.6C3.8 8.4 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+    <symbol id="i-check-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16 9.5"/></symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l9.5 16.5h-19z"/><path d="M12 10v4"/><path d="M12 17.2v.1"/></symbol>
+    <symbol id="i-x-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9 9l6 6"/><path d="M15 9l-6 6"/></symbol>
+    <symbol id="i-loader" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 1-9 9"/></symbol>
+    <symbol id="i-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 6.5L12 13l8.5-6.5"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 4v4h4"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 20v-4h-4"/></symbol>
+    <symbol id="i-arrow-down" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M6 13l6 6 6-6"/></symbol>
+    <symbol id="i-arrow-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12h12"/></symbol>
+    <symbol id="i-sidebar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12"/><path d="M18 6L6 18"/></symbol>
+  </defs>
+</svg>
+
+<div class="app" id="app">
+  <div class="backdrop" aria-hidden="true"><div class="backdrop-img"></div><div class="backdrop-shade"></div></div>
+
+  <header class="titlebar pywebview-drag-region" aria-label="Pencere">
+    <div class="tb-left">
+      <button class="tb-btn tb-nav" type="button" id="railToggle" aria-label="Menüyü gizle" aria-pressed="true" title="Menüyü gizle (Ctrl+B)"><svg class="ico ico-16"><use href="#i-sidebar"/></svg></button>
+      <div class="tb-title"><svg class="ico ico-14"><use href="#i-shield"/></svg><span>FortiVPN</span></div>
+    </div>
+    <div class="tb-controls">
+      <button class="tb-btn" type="button" id="tbMin" aria-label="Simge durumuna küçült"><svg class="ico ico-16"><use href="#i-minus"/></svg></button>
+      <button class="tb-btn tb-close" type="button" id="tbClose" aria-label="Kapat"><svg class="ico ico-16"><use href="#i-x"/></svg></button>
+    </div>
+  </header>
+
+  <div class="shell">
+    <nav class="rail" aria-label="Ana gezinme">
+      <div class="rail-items">
+        <button class="rail-item" type="button" data-go="connect" aria-current="page" title="Bağlan (Ctrl+1)">
+          <svg class="ico ico-20"><use href="#i-power"/></svg><span>Bağlan</span>
+        </button>
+        <button class="rail-item" type="button" data-go="log" title="Günlük (Ctrl+2)">
+          <svg class="ico ico-20"><use href="#i-terminal"/></svg><span>Günlük</span>
+        </button>
+        <button class="rail-item" type="button" data-go="settings" title="Ayarlar (Ctrl+3)">
+          <svg class="ico ico-20"><use href="#i-gear"/></svg><span>Ayarlar</span>
+        </button>
+      </div>
+      <div class="rail-foot">
+        <span class="rail-dot" id="railDot" role="img" aria-label="Bağlantı Kesildi"></span>
+        <span class="rail-ver" id="appVersion">v1.4</span>
+      </div>
+    </nav>
+
+    <main class="content">
+      <!-- 1 · BAĞLAN -->
+      <section class="screen screen-connect" id="screen-connect" aria-label="Bağlan">
+        <header class="c-head">
+          <div class="brand">
+            <div class="brand-name">FortiVPN</div>
+            <div class="brand-sub">İki Aşamalı Doğrulama (2FA)</div>
+          </div>
+          <div class="pill" id="statusPill" role="status" aria-live="polite">
+            <svg class="ico ico-12 pill-ico"><use id="pillIcoUse" href="#i-x-circle"/></svg>
+            <span id="pillText">Bağlantı Kesildi</span>
+          </div>
+        </header>
+
+        <div class="hero">
+          <div class="readout">
+            <div class="label">Bağlantı süresi</div>
+            <div class="timer" id="timer" aria-label="Bağlantı süresi">00:00:00</div>
+            <div class="status-line" id="statusLine">Bağlı değil</div>
+          </div>
+
+          <div class="power-wrap">
+            <span class="power-glow"></span>
+            <svg class="power-ring" viewBox="0 0 168 168" aria-hidden="true">
+              <circle class="ring-track" cx="84" cy="84" r="83"/>
+              <circle class="ring-arc" cx="84" cy="84" r="83"/>
+            </svg>
+            <span class="ripple" id="ripple"></span>
+            <button class="power" id="powerBtn" type="button" aria-label="Bağlan">
+              <svg class="power-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v8"/><path d="M6.3 6.8a8 8 0 1 0 11.4 0"/></svg>
+              <span class="scan-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+            </button>
+          </div>
+
+          <div class="under">
+            <div class="hint" id="hint">Bağlanmak için dokunun</div>
+            <div class="err" id="errBox">
+              <div class="err-text" id="errText">Doğrulama e-postası beklenen sürede gelmedi.</div>
+              <div class="err-actions"><span>Tekrar denemek için dokunun</span><span class="sep" aria-hidden="true">·</span><button class="link" type="button" data-go="log">Günlüğü aç<svg class="ico ico-12"><use href="#i-arrow-right"/></svg></button></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="chips">
+          <div class="chip">
+            <div class="label">Sunucu</div>
+            <div class="chip-val" id="chipServer" title="vpn.example.com:10321">vpn.example.com:10321</div>
+          </div>
+          <div class="chip">
+            <div class="label">Kullanıcı</div>
+            <div class="chip-val" id="chipUser">ahmet.yilmaz</div>
+          </div>
+          <div class="chip chip-token">
+            <div class="chip-row"><span class="label">2FA kodu</span><span class="chip-time" id="tokenTime">14:32:07</span></div>
+            <div class="chip-row">
+              <span class="token-code" id="tokenCode">482915</span>
+              <span class="token-src" id="tokenSrc">E-postadan alındı</span>
+              <button class="icon-btn icon-btn-sm" type="button" id="copyToken" aria-label="2FA kodunu kopyala" title="Kopyala"><svg class="ico ico-14"><use href="#i-copy"/></svg></button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2 · GÜNLÜK -->
+      <section class="screen screen-log" id="screen-log" aria-label="Günlük">
+        <header class="l-head">
+          <div class="l-title">
+            <h1 class="title">Olay Günlüğü</h1>
+            <span class="live"><span class="live-dot"></span><span class="label">Canlı</span></span>
+          </div>
+          <div class="l-actions">
+            <button class="btn btn-ghost btn-sm" type="button" id="logClear"><svg class="ico ico-16"><use href="#i-trash"/></svg>Temizle</button>
+            <button class="btn btn-ghost btn-sm" type="button" id="logCopy"><svg class="ico ico-16"><use href="#i-copy"/></svg><span id="logCopyText">Kopyala</span></button>
+            <button class="btn btn-secondary btn-sm" type="button" id="logExport"><svg class="ico ico-16"><use href="#i-download"/></svg>Dışa aktar</button>
+          </div>
+        </header>
+        <div class="seg" role="radiogroup" aria-label="Filtre" id="logFilter">
+          <button class="seg-item" type="button" role="radio" aria-checked="true" data-f="all">Tümü</button>
+          <button class="seg-item" type="button" role="radio" aria-checked="false" data-f="success"><i class="lv lv-success"></i>Başarılı</button>
+          <button class="seg-item" type="button" role="radio" aria-checked="false" data-f="warning"><i class="lv lv-warning"></i>Uyarı</button>
+          <button class="seg-item" type="button" role="radio" aria-checked="false" data-f="error"><i class="lv lv-error"></i>Hata</button>
+          <button class="seg-item" type="button" role="radio" aria-checked="false" data-f="token"><i class="lv lv-token"></i>2FA</button>
+        </div>
+        <div class="panel log-panel">
+          <div class="log-scroll" id="logScroll" tabindex="0" role="log" aria-label="Olay kayıtları" aria-live="polite"></div>
+          <div class="log-empty" id="logEmpty">
+            <div class="empty-ico"><svg class="ico ico-20"><use href="#i-terminal"/></svg></div>
+            <div class="empty-title">Henüz kayıt yok</div>
+            <div class="empty-sub">Bağlantı başladığında olaylar burada görünür.</div>
+          </div>
+          <button class="jump" type="button" id="logJump"><svg class="ico ico-14"><use href="#i-arrow-down"/></svg>Sona git</button>
+        </div>
+      </section>
+
+      <!-- 3 · AYARLAR -->
+      <section class="screen screen-settings" id="screen-settings" aria-label="Ayarlar">
+        <form class="s-body" id="settingsForm" autocomplete="off" novalidate>
+          <div class="s-row">
+            <fieldset class="card">
+              <legend class="card-h label">VPN</legend>
+              <div class="field">
+                <label class="label" for="f-server">Sunucu (Host:Port)</label>
+                <input class="input" id="f-server" name="server" spellcheck="false" value="vpn.example.com:10321">
+              </div>
+              <div class="field">
+                <label class="label" for="f-user">Kullanıcı adı</label>
+                <input class="input" id="f-user" name="user" spellcheck="false" value="ahmet.yilmaz">
+              </div>
+              <div class="field">
+                <label class="label" for="f-pass">Parola</label>
+                <div class="input-wrap">
+                  <input class="input" id="f-pass" name="password" type="password" value="Ornek2026!vpn">
+                  <button class="reveal" type="button" data-reveal="f-pass" aria-label="Parolayı göster" title="Göster"><svg class="ico ico-16"><use href="#i-eye"/></svg></button>
+                </div>
+              </div>
+            </fieldset>
+            <fieldset class="card">
+              <legend class="card-h label">E-posta (2FA)</legend>
+              <div class="field-row">
+                <div class="field">
+                  <label class="label" for="f-imap">IMAP sunucusu</label>
+                  <input class="input" id="f-imap" name="imap_host" spellcheck="false" value="imap.example.com">
+                </div>
+                <div class="field field-port">
+                  <label class="label" for="f-port">Port (SSL)</label>
+                  <input class="input" id="f-port" name="imap_port" inputmode="numeric" value="993">
+                </div>
+              </div>
+              <div class="field">
+                <label class="label" for="f-email">E-posta</label>
+                <input class="input" id="f-email" name="email" type="email" spellcheck="false" value="ahmet.yilmaz@example.com">
+              </div>
+              <div class="field">
+                <label class="label" for="f-epass">Parola</label>
+                <div class="input-wrap">
+                  <input class="input" id="f-epass" name="email_password" type="password" value="mailparolasi2026">
+                  <button class="reveal" type="button" data-reveal="f-epass" aria-label="Parolayı göster" title="Göster"><svg class="ico ico-16"><use href="#i-eye"/></svg></button>
+                </div>
+              </div>
+            </fieldset>
+          </div>
+          <fieldset class="card card-adv">
+            <legend class="card-h label">Gelişmiş</legend>
+            <div class="adv-grid">
+              <div class="field">
+                <label class="label" for="f-ping">Canlılık ping hedefi</label>
+                <input class="input" id="f-ping" name="ping_target" spellcheck="false" value="off" placeholder="off" aria-describedby="h-ping">
+                <span class="helper" id="h-ping">IP veya alan adı (kapalıysa 'off')</span>
+              </div>
+              <div class="field only-win">
+                <label class="label" for="f-oc">openconnect.exe yolu</label>
+                <input class="input" id="f-oc" name="openconnect_path" spellcheck="false" placeholder="C:\Program Files\OpenConnect\openconnect.exe" aria-describedby="h-oc">
+                <span class="helper" id="h-oc">Boşsa PATH’te aranır</span>
+              </div>
+              <div class="field only-win">
+                <label class="label" for="f-cert">Sunucu sertifikası</label>
+                <input class="input" id="f-cert" name="server_cert" spellcheck="false" placeholder="pin-sha256:…" aria-describedby="h-cert">
+                <span class="helper" id="h-cert">İsteğe bağlı</span>
+              </div>
+              <div class="field only-mac">
+                <label class="label" for="f-sudo">Sudo parolası</label>
+                <div class="input-wrap">
+                  <input class="input" id="f-sudo" name="sudo_password" type="password" value="macparola">
+                  <button class="reveal" type="button" data-reveal="f-sudo" aria-label="Parolayı göster" title="Göster"><svg class="ico ico-16"><use href="#i-eye"/></svg></button>
+                </div>
+                <span class="helper">Tünel kurulumu için gerekir</span>
+              </div>
+            </div>
+          </fieldset>
+        </form>
+        <footer class="s-foot">
+          <div class="toast" id="toast" role="status" aria-live="polite"><svg class="ico ico-16"><use href="#i-check-circle"/></svg><span id="toastText">Ayarlar kaydedildi</span></div>
+          <div class="s-actions">
+            <button class="btn btn-secondary" type="button" id="btnCancel">Vazgeç</button>
+            <button class="btn btn-primary" type="submit" form="settingsForm" id="btnSave">Kaydet</button>
+          </div>
+        </footer>
+      </section>
+    </main>
+  </div>
+</div>
+
+<div class="devbar" id="devbar" hidden>
+  <select id="dvScreen" aria-label="Ekran"><option value="connect">Bağlan</option><option value="log">Günlük</option><option value="settings">Ayarlar</option></select>
+  <select id="dvState" aria-label="Durum"><option value="idle">idle</option><option value="preparing">preparing</option><option value="connecting">connecting</option><option value="scan2fa">scan2fa</option><option value="connected">connected</option><option value="reconnecting">reconnecting</option><option value="error">error</option></select>
+  <select id="dvError" aria-label="Hata"><option value="2fa">2FA Alınamadı</option><option value="login">Giriş Başarısız</option><option value="admin">Yönetici Yetkisi</option><option value="macpw">Mac Parolası</option></select>
+  <select id="dvOs" aria-label="OS"><option value="win">Windows</option><option value="mac">macOS</option></select>
+  <select id="dvChrome" aria-label="Pencere"><option value="native">Native bar</option><option value="custom">Özel sürükleme</option></select>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

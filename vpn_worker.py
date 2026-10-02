@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-VPN İş Parçacığı ve Yönetim Modülü (macOS openfortivpn & Windows FortiSSLVPNcli)
+VPN İş Parçacığı ve Yönetim Modülü (macOS openfortivpn & Windows openconnect)
 """
 
 import os
@@ -12,6 +12,7 @@ import platform
 import threading
 import shutil
 import re
+import signal
 import tempfile
 from datetime import datetime, timezone
 from typing import Optional, Callable
@@ -44,6 +45,9 @@ class VPNWorker(threading.Thread):
         self.is_connected = False
         self.temp_config_path = None
         self.discovered_keepalive_ip: Optional[str] = None
+        # Yeniden denemenin işe yaramayacağı hata (ör. VPN istemcisi yok): döngü
+        # durur ve hata durumu "Yeniden Bağlanılıyor" ile ezilmez.
+        self.fatal_error = False
 
     def log(self, msg: str):
         self.on_log(msg)
@@ -71,11 +75,18 @@ class VPNWorker(threading.Thread):
         if self.process and self.process.poll() is None:
             try:
                 if platform.system() == "Windows":
-                    subprocess.run(
-                        ["taskkill", "/F", "/T", "/PID", str(self.process.pid)],
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL
-                    )
+                    # Önce nazikçe (Ctrl+Break) - openconnect Wintun adaptörünü
+                    # düzgün temizleyebilsin diye; olmazsa zorla sonlandır.
+                    try:
+                        self.process.send_signal(signal.CTRL_BREAK_EVENT)
+                        self.process.wait(timeout=3)
+                    except Exception:
+                        subprocess.run(
+                            ["taskkill", "/F", "/T", "/PID", str(self.process.pid)],
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                            creationflags=subprocess.CREATE_NO_WINDOW
+                        )
                 else:
                     self.process.terminate()
                     time.sleep(0.4)
@@ -94,12 +105,18 @@ class VPNWorker(threading.Thread):
         timeout_val = "1000" if is_win else "1"
 
         cmd = ["ping", param, "1", timeout_param, timeout_val, host]
+        run_kwargs = {}
+        if is_win:
+            # Konsolsuz (pythonw) süreçte her ping için conhost penceresi
+            # yanıp sönmesin diye - bkz. Popen'daki CREATE_NO_WINDOW kullanımı.
+            run_kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
         try:
             res = subprocess.run(
                 cmd,
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
-                timeout=2
+                timeout=2,
+                **run_kwargs
             )
             return res.returncode == 0
         except Exception:
@@ -116,7 +133,7 @@ class VPNWorker(threading.Thread):
                 self.log(f"Oturum hatası: {e}")
                 success = False
 
-            if self._stop_event.is_set():
+            if self._stop_event.is_set() or self.fatal_error:
                 break
 
             self.is_connected = False
@@ -180,16 +197,50 @@ class VPNWorker(threading.Thread):
         sudo_pass = self.config.get("MAC_SUDO_PASS", "")
 
         if system == "Windows":
-            cli_path = self.config.get(
-                "FORTICLIENT_PATH",
-                r"C:\Program Files (x86)\Fortinet\SslvpnClient\FortiSSLVPNcli.exe"
+            openconnect_exe = (
+                self.config.get("OPENCONNECT_EXE")
+                or shutil.which("openconnect")
+                or shutil.which("openconnect.exe")
             )
-            cmd = [cli_path, "/server", server, "/vpnuser", user, "/vpnpass", password]
+            if not openconnect_exe:
+                for candidate in (
+                    r"C:\Program Files\OpenConnect\openconnect.exe",
+                    r"C:\Program Files (x86)\OpenConnect\openconnect.exe",
+                ):
+                    if os.path.isfile(candidate):
+                        openconnect_exe = candidate
+                        break
+            if not openconnect_exe or not os.path.exists(openconnect_exe):
+                self.log("HATA: openconnect.exe bulunamadı! .env dosyasında OPENCONNECT_EXE ayarlayın.")
+                self.on_status_change("openconnect Eksik", "#ed8796")
+                self.fatal_error = True
+                return False
+
+            # --passwd-on-stdin kasıtlı olarak kullanılmıyor: openconnect düz bir
+            # stdin pipe'ından da parola/OTP istemlerini okuyabiliyor; parola burada
+            # reaktif olarak (parola istemi tespit edilince) gönderiliyor, aşağıda.
+            cmd = [openconnect_exe, "--protocol=fortinet", "-u", user, "-v"]
+
+            servercert = self.config.get("VPN_SERVERCERT", "")
+            if servercert:
+                cmd += ["--servercert", servercert]
+
+            vpnc_script = self.config.get("VPNC_SCRIPT", "")
+            if vpnc_script:
+                cmd += ["--script", vpnc_script]
+
+            import shlex
+            raw_extra = (self.config.get("VPN_EXTRA_ARGS") or "").strip()
+            if raw_extra:
+                cmd += shlex.split(raw_extra)
+
+            cmd.append(server)
         else:
             openfortivpn_bin = shutil.which("openfortivpn") or "/opt/homebrew/bin/openfortivpn"
             if not os.path.exists(openfortivpn_bin):
                 self.log("HATA: openfortivpn bulunamadı!")
                 self.on_status_change("openfortivpn Eksik", "#ed8796")
+                self.fatal_error = True
                 return False
 
             # sudo yetkisini bağımsız olarak doğrula ve timestamp'i tazele
@@ -239,30 +290,47 @@ class VPNWorker(threading.Thread):
         self.on_status_change("Bağlanıyor...", "#8aadf4")
         self.log(f"VPN başlatılıyor: {server} (Kullanıcı: {user})")
 
+        popen_kwargs = {}
+        if system == "Windows":
+            # Konsol penceresi açmaz + Ctrl+Break ile düzgün kapatabilmemizi sağlar
+            # (bkz. disconnect: openconnect'in Wintun adaptörünü temizleyebilmesi için).
+            popen_kwargs["creationflags"] = (
+                subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP
+            )
+
         try:
             self.process = subprocess.Popen(
                 cmd,
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
-                bufsize=0
+                bufsize=0,
+                **popen_kwargs
             )
         except Exception as e:
             self.log(f"VPN süreci başlatılamadı: {e}")
             self.on_status_change("Başlatma Hatası", "#ed8796")
             return False
 
+        # Windows/openconnect: parola, "Password:" istemi tespit edilince reaktif
+        # olarak gönderilir (aşağıdaki döngüde). openconnect prompt'u hiç
+        # basmazsa diye kısa bir süre sonra proaktif olarak da gönderilir.
+        pw_sent = False
+        proc_start_time = time.time()
+
         token_requested = False
         output_buffer = ""
         connected = False
 
         while not self._stop_event.is_set():
-            if self.process.poll() is not None:
-                self.log(f"VPN istemcisi kapandı (Çıkış Kodu: {self.process.returncode})")
+            proc = self.process
+            if proc is None or proc.poll() is not None:
+                exit_code = proc.returncode if proc else "N/A"
+                self.log(f"VPN istemcisi kapandı (Çıkış Kodu: {exit_code})")
                 break
 
             try:
-                raw_byte = self.process.stdout.read(1)
+                raw_byte = proc.stdout.read(1)
             except Exception:
                 break
 
@@ -308,20 +376,54 @@ class VPNWorker(threading.Thread):
             elif len(output_buffer) > 400:
                 output_buffer = output_buffer[-400:]
 
-            # Sertifika onayı
+            # Sertifika onayı (openfortivpn: Y/N; openconnect: 'yes' bekliyor)
             if any(p in output_buffer for p in ["(Y/N)", "(y/n)", "Do you want to continue with this connection?"]):
                 self.log("CLI: Sertifika onayı tespit edildi, 'Y' gönderiliyor...")
                 self.process.stdin.write(b"Y\n")
                 self.process.stdin.flush()
                 output_buffer = ""
+            elif "enter 'yes' to accept" in output_buffer.lower():
+                self.log("CLI: Sertifika onayı tespit edildi, 'yes' gönderiliyor...")
+                self.process.stdin.write(b"yes\n")
+                self.process.stdin.flush()
+                output_buffer = ""
 
-            # Sertifika digest yakalama
+            # Sertifika digest yakalama (openfortivpn: --trusted-cert=..., openconnect: pin-sha256:...)
             cert_match = re.search(r"--trusted-cert=([a-f0-9]{64})", output_buffer, re.IGNORECASE)
             if cert_match and not self.trusted_cert:
                 found_digest = cert_match.group(1)
                 self.log(f"Sertifika özeti yakalandı: {found_digest}")
                 self.trusted_cert = found_digest
                 self.config["TRUSTED_CERT"] = found_digest
+
+            servercert_match = re.search(r"(pin-sha256:[A-Za-z0-9+/=]+)", output_buffer)
+            if servercert_match and not self.config.get("VPN_SERVERCERT"):
+                found_servercert = servercert_match.group(1)
+                self.log(f"Sunucu sertifika özeti yakalandı: {found_servercert}")
+                self.config["VPN_SERVERCERT"] = found_servercert
+
+            if system == "Windows":
+                # Windows/openconnect: yönetici yetkisi olmadan Wintun adaptörü kurulamaz.
+                if re.search(r"administrator privileges|access is denied.*wintun|wintun.*access is denied|"
+                             r"neither windows-tap nor wintun|set up tun device failed",
+                             output_buffer, re.IGNORECASE):
+                    self.log("HATA: openconnect ağ adaptörünü kuramadı - uygulamayı YÖNETİCİ olarak çalıştırın.")
+                    self.on_status_change("Yönetici Yetkisi Gerekli", "#ed8796")
+                    return False
+
+                # Parola istemi: openconnect --passwd-on-stdin kullanmadan da bu pipe'tan
+                # parolayı okuyabiliyor; istem görülünce (ya da kısa bir süre sonra
+                # proaktif olarak, istem hiç basılmazsa diye) parola gönderilir.
+                pw_prompt = re.search(r"password[: ]*$|enter .*password|account password",
+                                       output_buffer, re.IGNORECASE)
+                if not pw_sent and (pw_prompt or (time.time() - proc_start_time) > 1.2):
+                    pw_sent = True
+                    try:
+                        self.process.stdin.write(f"{password}\n".encode("utf-8"))
+                        self.process.stdin.flush()
+                    except Exception:
+                        pass
+                    output_buffer = ""
 
             # --- 1. 2FA TOKEN İSTEMİ ---
             is_token_prompt = any(
@@ -333,7 +435,17 @@ class VPNWorker(threading.Thread):
                     "sms/email token:",
                     "otp:",
                     "one-time-password:",
-                    "enter token:"
+                    "enter token:",
+                    "authcode",
+                    "challenge",
+                    "code:",
+                    "code :",
+                    "enter code",
+                    "verification code",
+                    "passcode",
+                    "second factor",
+                    "fortitoken",
+                    "2fa"
                 ]
             )
 
@@ -386,7 +498,17 @@ class VPNWorker(threading.Thread):
                     "Interface ppp",
                     "Negotiation complete",
                     "Adding VPN nameservers",
-                    "publish_entry SCDSet() failed: Success!"
+                    "publish_entry SCDSet() failed: Success!",
+                    # openconnect (Windows)
+                    "Configured as",
+                    "Connected as",
+                    "Connected tun",
+                    "SSL connected",
+                    "session authentication will expire",
+                    "Established DTLS",
+                    "Established ESP",
+                    "ESP session established",
+                    "tunnel is up and running"
                 ]
             )
 
@@ -403,13 +525,44 @@ class VPNWorker(threading.Thread):
                 self.log(">>> TEBRİKLER: Kolaysoft VPN Tüneli Başarıyla Açıldı! <<<")
                 self.log("VPN Tüneli devrede. Bağlantı ve çıktı akışı sürekli canlı tutuluyor.")
 
-                # FortiGate boşta kalma (idle) zaman aşımını önlemek için arka plan canlılık sinyali başlat
+                # FortiGate boşta kalma (idle) zaman aşımını önlemek için ve tünelin
+                # gerçekten canlı olduğunu doğrulamak için arka planda canlılık sinyali başlat.
                 def keepalive_worker():
-                    target = getattr(self, "discovered_keepalive_ip", None) or "172.15.190.100"
+                    configured_target = (self.config.get("PING_TARGET") or "").strip()
+                    is_dummy = configured_target.lower() in ["off", "none", "no", "", "10.0.0.1", "10.10.0.1"]
+                    if not is_dummy:
+                        target = configured_target
+                        enforce_kill = True
+                    else:
+                        target = getattr(self, "discovered_keepalive_ip", None) or "172.15.190.100"
+                        enforce_kill = False
+
+                    try:
+                        interval = max(5, int(self.config.get("PING_INTERVAL", "15")))
+                    except (TypeError, ValueError):
+                        interval = 15
+                    try:
+                        max_fails = max(3, int(self.config.get("MAX_PING_FAILS", "3")))
+                    except (TypeError, ValueError):
+                        max_fails = 3
+
+                    consecutive_fails = 0
                     while not self._stop_event.is_set() and self.process and self.process.poll() is None:
-                        # 8 saniyede bir tünel üzerinden tek bir kontrol paketi göndererek tüneli aktif tut
-                        self.ping_target(target)
-                        for _ in range(8):
+                        # Tünel üzerinden periyodik kontrol paketi göndererek tünel NAT tablosunu
+                        # aktif tut. Yalnızca kullanıcı bilerek özel bir hedef belirttiyse (enforce_kill=True)
+                        # ve ardışık başarısızlık limiti aşıldıysa tünel yeniden başlatılır.
+                        if self.ping_target(target):
+                            consecutive_fails = 0
+                        else:
+                            consecutive_fails += 1
+                            if enforce_kill:
+                                self.log(f"UYARI: Canlılık pingi yanıt vermedi ({consecutive_fails}/{max_fails}) - hedef: {target}")
+                                if consecutive_fails >= max_fails:
+                                    self.log("HATA: Tünel yanıt vermiyor, bağlantının koptuğu kabul edilip yeniden bağlanılacak.")
+                                    self.kill_process()
+                                    break
+
+                        for _ in range(interval):
                             if self._stop_event.is_set() or not self.process or self.process.poll() is not None:
                                 break
                             time.sleep(1)

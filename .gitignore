@@ -16,3 +16,6 @@ env/
 # Geçici dosyalar
 *.conf
 .DS_Store
+
+# IDE
+.idea/
