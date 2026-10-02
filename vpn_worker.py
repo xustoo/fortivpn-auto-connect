@@ -45,6 +45,9 @@ class VPNWorker(threading.Thread):
         self.is_connected = False
         self.temp_config_path = None
         self.discovered_keepalive_ip: Optional[str] = None
+        # Yeniden denemenin işe yaramayacağı hata (ör. VPN istemcisi yok): döngü
+        # durur ve hata durumu "Yeniden Bağlanılıyor" ile ezilmez.
+        self.fatal_error = False
 
     def log(self, msg: str):
         self.on_log(msg)
@@ -130,7 +133,7 @@ class VPNWorker(threading.Thread):
                 self.log(f"Oturum hatası: {e}")
                 success = False
 
-            if self._stop_event.is_set():
+            if self._stop_event.is_set() or self.fatal_error:
                 break
 
             self.is_connected = False
@@ -210,6 +213,7 @@ class VPNWorker(threading.Thread):
             if not openconnect_exe or not os.path.exists(openconnect_exe):
                 self.log("HATA: openconnect.exe bulunamadı! .env dosyasında OPENCONNECT_EXE ayarlayın.")
                 self.on_status_change("openconnect Eksik", "#ed8796")
+                self.fatal_error = True
                 return False
 
             # --passwd-on-stdin kasıtlı olarak kullanılmıyor: openconnect düz bir
@@ -236,6 +240,7 @@ class VPNWorker(threading.Thread):
             if not os.path.exists(openfortivpn_bin):
                 self.log("HATA: openfortivpn bulunamadı!")
                 self.on_status_change("openfortivpn Eksik", "#ed8796")
+                self.fatal_error = True
                 return False
 
             # sudo yetkisini bağımsız olarak doğrula ve timestamp'i tazele
