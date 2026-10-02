@@ -23,7 +23,8 @@ Hem **macOS** hem de **Windows** sistemlerinde, FortiClient uygulamasına ihtiya
 FortiVPN/
 ├── install.sh              # macOS/Linux için tek tıkla/tek komutla otomatik kurulum aracı
 ├── Kurulum.command         # macOS Finder üzerinden çift tıklanabilir kurulum sihirbazı
-├── main.py                 # Masaüstü grafik arayüzü (Tkinter tabanlı GUI)
+├── main.py                 # Masaüstü uygulaması: pywebview penceresi + Python köprüsü (JS ⇄ VPNWorker)
+├── ui/                     # Arayüz (HTML/CSS/JS, framework yok): index.html, styles.css, app.js, assets/
 ├── vpn_worker.py           # Arka plan VPN tünel ve süreç yönetim motoru
 ├── imap_client.py          # Carbonio / IMAP 2FA e-posta tarama ve kod çıkarma modülü
 ├── requirements.txt        # Gerekli Python bağımlılıkları
