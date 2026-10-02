@@ -1,245 +1,229 @@
-# FortiVPN Auto-Connect & 2FA Manager
+# FortiVPN Auto-Connect
 
-FortiClient SSL-VPN bağlantısını, iki aşamalı doğrulamayı (2FA / OTP) e-postadan (Carbonio, Zimbra, IMAP) otomatik okuyarak **tek tıkla ve eller serbest (hands-free)** şekilde otomatikleştiren açık kaynaklı masaüstü yönetim aracı.
+A desktop app that connects to a FortiGate SSL-VPN and handles two-factor
+authentication for you. When the gateway asks for a one-time code, the app
+reads it from your mailbox over IMAP and submits it, so you don't have to type it.
 
-Hem **macOS** hem de **Windows** sistemlerinde, FortiClient uygulamasına ihtiyaç duymadan, açık kaynaklı istemcilerle (`openfortivpn` / `openconnect`) yerel olarak çalışır.
+- **No FortiClient required.** Uses the open-source clients `openfortivpn`
+  (macOS) and `openconnect` with `--protocol=fortinet` (Windows).
+- **Automatic 2FA.** Watches your inbox (Carbonio, Zimbra or any IMAP server)
+  for the authentication email, extracts the code, submits it and marks the
+  message as read.
+- **Ignores stale codes.** Codes that were already used are blocklisted, so an
+  old email is never submitted. Slow mail delivery is handled with a
+  configurable timeout.
+- **Keep-alive.** Optionally monitors the tunnel and reconnects when it drops.
+- **Status panel.** Shows the server, user, last 2FA code and connection uptime.
+- **Cross-platform.** Runs on macOS and Windows.
 
----
+## How It Works
 
-## Özellikler
+1. The app starts `openfortivpn` or `openconnect` with your credentials.
+2. When the gateway requests a token, it polls your mailbox over IMAPS for a
+   new code that it has not used before.
+3. The code is written to the VPN client's input and the email is marked as read.
+4. If keep-alive is enabled, the app pings an internal host and restarts the
+   tunnel after repeated failures.
 
-- **Tam Otomatik 2FA (Zero-Click):** VPN sunucusuna bağlanır, 2FA kodu istendiğinde e-posta kutuna bağlanarak en güncel tek kullanımlık kodu (AuthCode) regex ile yakalar, otomatik olarak terminale yazar ve maili "Okundu" işaretler.
-- **Akıllı Gecikme Toleransı:** Mail sunucusunun e-postayı iletme süresini (20 saniyelik geri sayım ve 90 saniyelik zaman aşımıyla) tolere eder; eski kodları kara listeye alarak asla yanlış/önceki kodu girmez.
-- **Sade ve Profesyonel Arayüz:** Emoji veya gereksiz görsel karmaşadan arındırılmış, karanlık mod (dark theme) destekli modern masaüstü kontrol merkezi.
-- **Canlı Süre ve Bilgi Paneli:** Hangi sunucuya bağlandığını, kullanıcı adını, maskeli şifreni (göster/gizle butonlu), son okunan 2FA kodunu ve tünelin kaç dakikadır aktif olduğunu saniye saniye gösterir.
-- **Canlılık Denetimi (Keep-Alive):** Tünel durumunu izler, bağlantı koptuğunda süreci güvenle yeniler ve otomatik olarak tekrar bağlanır.
-- **Çapraz Platform:** macOS ve Windows işletim sistemlerinde sorunsuz çalışır.
+## Installation
 
----
-
-## Proje Dizin Yapısı
-
-```text
-FortiVPN/
-├── install.sh              # macOS/Linux için tek tıkla/tek komutla otomatik kurulum aracı
-├── Kurulum.command         # macOS Finder üzerinden çift tıklanabilir kurulum sihirbazı
-├── main.py                 # Masaüstü uygulaması: pywebview penceresi + Python köprüsü (JS ⇄ VPNWorker)
-├── ui/                     # Arayüz (HTML/CSS/JS, framework yok): index.html, styles.css, app.js, assets/
-├── vpn_worker.py           # Arka plan VPN tünel ve süreç yönetim motoru
-├── imap_client.py          # Carbonio / IMAP 2FA e-posta tarama ve kod çıkarma modülü
-├── requirements.txt        # Gerekli Python bağımlılıkları
-├── .env.example            # Örnek yapılandırma şablonu
-├── .gitignore              # Hassas parolaların GitHub'a gitmesini engelleyen dosya
-├── FortiVPN_Baslat.command # macOS hızlı başlatıcı betiği
-├── FortiVPN.app            # macOS çift tıklanabilir yerel uygulama paketi
-└── Windows/
-    ├── install.ps1         # Windows için tek satırlık/tek komutla web kurulum aracı (Kurulum.bat'ı devreye sokar)
-    └── Kurulum.bat         # Windows kurulum betiği (Python + bağımlılıklar + openconnect + masaüstü kısayolu)
-```
-
----
-
-## Hızlı ve Otomatik Kurulum (Önerilen)
-
-### macOS (Tek Komutla Kurulum)
-
-Terminalinizi açıp aşağıdaki komutu yapıştırmanız yeterlidir:
+### macOS
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/xustoo/fortivpn-auto-connect/main/install.sh | bash
 ```
 
-Bu komut:
-- Gerekli sistem bağımlılıklarını (`openfortivpn`, `python3`) kontrol eder ve kurar.
-- İzole sanal ortamı (`.venv`) oluşturur ve kütüphaneleri yükler.
-- `.env` yapılandırma dosyasını hazır eder.
-- Masaüstünüze çift tıklanabilir **FortiVPN.app** ve **FortiVPN_Baslat.command** kısayollarını yerleştirir.
+The installer:
 
-*Alternatif Olarak:* Projeyi indirip klasör içindeki **`Kurulum.command`** dosyasına çift tıklayarak da sihirbazı başlatabilirsiniz.
+- installs `openfortivpn` and `python3` if they are missing;
+- creates a virtual environment (`.venv`) and installs the Python dependencies;
+- creates a `.env` file from `.env.example`;
+- puts `FortiVPN.app` and `FortiVPN_Baslat.command` launchers on your desktop.
 
----
+You can also clone the repository and double-click `Kurulum.command`.
 
-### Windows (Tek Komutla Kurulum)
+### Windows
 
-PowerShell'i açıp aşağıdaki komutu yapıştırmanız yeterlidir (Git kurulu değilse proje otomatik ZIP olarak indirilir):
+Run in PowerShell:
 
 ```powershell
 irm https://raw.githubusercontent.com/xustoo/fortivpn-auto-connect/main/Windows/install.ps1 | iex
 ```
 
-Bu komut:
-- Projeyi `Masaüstü\FortiVPN` klasörüne indirir (Git varsa `git clone`, yoksa ZIP indirme).
-- Python kurulu değilse otomatik kurmayı teklif eder.
-- Gerekli Python bağımlılıklarını ve `openconnect` istemcisini kurar.
-- `.env` yapılandırma dosyasını hazır eder.
-- Masaüstünüze çift tıklanabilir **`FortiVPN_Baslat.bat`** kısayolunu yerleştirir.
+The installer:
 
-*Alternatif Olarak:* Projeyi indirip **`Windows`** klasöründeki **`Kurulum.bat`** dosyasına çift tıklayarak da aynı sihirbazı başlatabilirsiniz.
+- downloads the project to `Desktop\FortiVPN` (with `git clone`, or as a ZIP
+  if Git is not installed);
+- offers to install Python if it is missing (via `winget`, falling back to the
+  official python.org installer);
+- installs the Python dependencies;
+- offers to install the `openconnect` CLI (v9.21, including the Wintun driver),
+  showing the file size and SHA-256 hash before installing;
+- registers a `FortiVPN-AutoConnect` scheduled task that runs the app with
+  administrator rights;
+- creates a `.env` file from `.env.example`;
+- puts a `FortiVPN_Baslat.bat` launcher on your desktop.
 
----
+Installing openconnect and registering the task happen in a single elevated
+step, so Windows shows **one** UAC prompt during setup. If the prompt does not
+appear, look for a flashing icon on the taskbar.
 
-## Manuel Kurulum ve Kullanım Kılavuzu
+You can also clone the repository and run `Windows\Kurulum.bat` directly.
 
-### macOS Manuel Kurulum
+## Manual Installation
 
-#### 1. Ön Koşullar
-
-macOS üzerinde tünel arabirimini oluşturmak için `openfortivpn` ve `Python 3` gereklidir:
+### macOS
 
 ```bash
 brew install openfortivpn python
-```
-
-#### 2. Projeyi İndirme ve Bağımlılıkları Yükleme
-
-```bash
 git clone https://github.com/xustoo/fortivpn-auto-connect.git
 cd fortivpn-auto-connect
 ./install.sh
 ```
 
-### 3. Yapılandırma (`.env` Dosyası)
+### Windows
 
-`.env.example` dosyasını kopyalayarak `.env` oluşturun:
+```cmd
+git clone https://github.com/xustoo/fortivpn-auto-connect.git
+cd fortivpn-auto-connect
+Windows\Kurulum.bat
+```
+
+If a step fails (for example, because a corporate network blocks a download),
+install the components yourself:
+
+- **Python 3.8+** from [python.org](https://www.python.org/downloads/).
+  Select "Add Python to PATH" during installation.
+- **openconnect CLI.** Note that OpenConnect-GUI (including
+  `choco install openconnect-gui`) does not ship `openconnect.exe` and will not
+  work. Download the official build from the openconnect GitLab CI:
+
+  ```
+  https://gitlab.com/openconnect/openconnect/-/jobs/artifacts/v9.21/raw/openconnect-installer-MinGW64-GnuTLS.exe?job=MinGW64%2FGnuTLS
+  ```
+
+  It installs to `C:\Program Files\OpenConnect\` by default. Add that folder to
+  `PATH` or set `OPENCONNECT_EXE` in `.env`.
+
+  This artifact link is tied to the `v9.21` tag and may expire. For a newer
+  version, open the
+  [openconnect pipelines](https://gitlab.com/openconnect/openconnect/-/pipelines)
+  page and download the artifact of the `MinGW64/GnuTLS` job for the tag you want.
+
+## Configuration
+
+Settings are read from a `.env` file in the project root. The installers
+create it for you. To create it manually:
 
 ```bash
 cp .env.example .env
 ```
 
-`.env` dosyasını bir metin düzenleyiciyle açıp kendi bilgilerinizi girin:
+Example:
 
 ```ini
-# VPN Sunucu Bilgileri
-VPN_SERVER=vpn.sirketiniz.com:10321
-VPN_USER=kullanici_adiniz
-VPN_PASS=vpn_parolaniz
-TRUSTED_CERT=   # Opsiyonel: Gateway sha256 sertifika özeti (boş bırakılırsa otomatik yakalanır)
+# VPN
+VPN_SERVER=vpn.example.com:10321
+VPN_USER=your_username
+VPN_PASS=your_vpn_password
 
-# E-posta (Carbonio / IMAP SSL Port 993) Bilgileri
-IMAP_SERVER=mail.sirketiniz.com
+# Mail (IMAP over SSL)
+IMAP_SERVER=mail.example.com
 IMAP_PORT=993
-IMAP_USER=adiniz@sirketiniz.com
-IMAP_PASS=eposta_parolaniz
+IMAP_USER=you@example.com
+IMAP_PASS=your_mail_password
 MAIL_TIMEOUT=90
 
-# Canlılık Denetimi (Varsayılan olarak 'off' önerilir)
+# Keep-alive (off is recommended unless you have a reliable internal host)
 PING_TARGET=off
 
-# macOS Yönetici Parolası (Ağ tüneli açmak için gereklidir)
-MAC_SUDO_PASS=  # Boş bırakırsanız uygulama ilk açılışta ekrandan sorar ve kaydeder
-```
+# macOS only: password used to run openfortivpn with sudo.
+# Leave empty and the app asks for it on first launch.
+MAC_SUDO_PASS=
 
-### 4. Çalıştırma
-
-Uygulamayı 3 farklı şekilde başlatabilirsiniz:
-
-1. **Terminalden:**
-   ```bash
-   python3 main.py
-   ```
-2. **Hızlı Başlatıcı:** Klasördeki `FortiVPN_Baslat.command` dosyasına çift tıklayarak.
-3. **Masaüstü Uygulaması:** `FortiVPN.app` paketine çift tıklayarak.
-
----
-
-## Windows Kurulum ve Kullanım Kılavuzu
-
-Windows'ta FortiClient uygulamasının kurulu olmasına **gerek yoktur**. Bağlantı, macOS'taki `openfortivpn`'in Windows karşılığı olan açık kaynaklı **openconnect** istemcisiyle kurulur (`--protocol=fortinet`). Windows'ta kurulum için tek yapmanız gereken `Windows\Kurulum.bat`'ı çalıştırmaktır.
-
-### 1. Projeyi İndirin ve `Windows\Kurulum.bat`'ı Çalıştırın
-
-Komut İstemi (CMD) veya PowerShell'de:
-
-```cmd
-git clone <REPO_URL>
-cd FortiVPN
-Windows\Kurulum.bat
-```
-
-`Kurulum.bat` gereken her şeyi sizin yerinize kurar:
-
-- Python kurulu değilse otomatik kurmayı teklif eder (önce `winget`, o da yoksa/başarısız olursa python.org'un resmi installer'ı).
-- `requirements.txt` bağımlılıklarını kurar.
-- `.env` yoksa `.env.example`'dan oluşturur.
-- `openconnect` kurulu değilse resmi installer'ı (v9.21, wintun sürücüsü dahil) indirmeden önce dosya boyutunu ve SHA256 özetini gösterip kurmayı teklif eder.
-
-openconnect kurulumu ve zamanlanmış görev kaydı tek bir yönetici adımında yapılır; bu adımda **bir kez** Windows Kullanıcı Hesabı Denetimi (UAC) penceresi çıkar, "Evet" demeniz yeterli. Pencere arkada kalırsa görev çubuğunda yanıp sönen simgeye tıklayın. (Python'u otomatik kurdurursanız ayrıca kendi kurulumu da UAC isteyebilir.)
-
-### 2. Yapılandırma (`.env` Dosyası)
-
-`Kurulum.bat` `.env` dosyasını sizin için `.env.example`'dan oluşturur; açıp kendi bilgilerinizle doldurun:
-
-```ini
-VPN_SERVER=vpn.sirketiniz.com:10321
-VPN_USER=kullanici_adiniz
-VPN_PASS=vpn_parolaniz
-
-# openconnect.exe PATH'te değilse tam yolu
+# Windows only
 OPENCONNECT_EXE=
-# Boş bırakılırsa ilk bağlantıda sunucu sertifikası otomatik yakalanıp buraya kaydedilir
 VPN_SERVERCERT=
-
-IMAP_SERVER=mail.sirketiniz.com
-IMAP_PORT=993
-IMAP_USER=adiniz@sirketiniz.com
-IMAP_PASS=eposta_parolaniz
-MAIL_TIMEOUT=90
-PING_TARGET=off
 ```
 
-### 3. Çalıştırma
+| Variable | Description | Example |
+| :--- | :--- | :--- |
+| `VPN_SERVER` | FortiGate gateway host and port | `vpn.example.com:10321` |
+| `VPN_USER` | VPN username | `your_username` |
+| `VPN_PASS` | VPN password | |
+| `IMAP_SERVER` | Mail server that receives the 2FA email | `mail.example.com` |
+| `IMAP_PORT` | IMAPS port | `993` |
+| `IMAP_USER` | Mailbox that receives the 2FA email | `you@example.com` |
+| `IMAP_PASS` | Mailbox password | |
+| `MAIL_TIMEOUT` | Maximum time to wait for the 2FA email, in seconds | `90` |
+| `PING_TARGET` | Internal IP to ping for keep-alive, or `off` to disable | `off` |
+| `PING_INTERVAL` | Seconds between keep-alive pings | `15` |
+| `MAX_PING_FAILS` | Consecutive failed pings before reconnecting | `3` |
+| `RECONNECT_DELAY` | Seconds to wait before reconnecting | `15` |
+| `TRUSTED_CERT` | *(macOS)* SHA-256 digest of the gateway certificate. Detected automatically if empty | |
+| `MAC_SUDO_PASS` | *(macOS)* Your Mac user password, used to start `openfortivpn` | |
+| `OPENCONNECT_EXE` | *(Windows)* Full path to `openconnect.exe`. Looked up in `PATH` if empty | `C:\Program Files\OpenConnect\openconnect.exe` |
+| `VPN_SERVERCERT` | *(Windows)* Gateway certificate pin. Captured and saved on first connection if empty | `pin-sha256:...` |
+| `VPNC_SCRIPT` | *(Windows)* Custom `vpnc-script` path passed to openconnect | |
+| `VPN_EXTRA_ARGS` | *(Windows)* Extra arguments passed to openconnect | |
 
-`Kurulum.bat` kurulumun sonunda Masaüstünüze **`FortiVPN_Baslat.bat`** kısayolunu ekler; buna çift tıklayarak çalıştırabilirsiniz. Terminalden çalıştırmak isterseniz:
+## Usage
+
+### macOS
+
+Use any of the following:
+
+- double-click `FortiVPN.app`;
+- double-click `FortiVPN_Baslat.command`;
+- run `python3 main.py` from the project folder.
+
+### Windows
+
+Double-click `FortiVPN_Baslat.bat` on your desktop, or run:
 
 ```cmd
 python main.py
 ```
 
-`openconnect`'in Windows'ta bir sanal ağ arayüzü (Wintun) oluşturabilmesi için yönetici yetkisi gerekir. Uygulama, admin olarak çalışmıyorsa başlangıçta kendini otomatik olarak yükseltilmiş (yönetici) şekilde yeniden başlatır — bunun için **her açılışta bir kez** UAC onayı istenir ("Evet" demeniz yeterli).
+openconnect needs administrator rights to create the Wintun network adapter.
+The desktop launcher starts the app through the `FortiVPN-AutoConnect`
+scheduled task, which already runs elevated, so no UAC prompt is shown. If the
+task is missing or the app is started another way, the app relaunches itself
+as administrator and Windows shows a UAC prompt.
 
-> Not: Görev Zamanlayıcı üzerinden "girişte otomatik, hiç UAC istemeden" çalıştırma da denendi, ancak bazı Windows kurulumlarında (ör. "en yüksek yetkiyle + kullanıcı oturumunda çalıştır" birleşimi) görev sonsuza dek "Queued" durumunda kalıp hiç çalışmıyor — bu, Windows'un görev zamanlayıcısının bilinen bir kısıtı. Bu yüzden daha basit ve güvenilir olan "her açılışta bir UAC onayı" yöntemi kullanılıyor.
+## Project Structure
 
-### Sorun Giderme: Elle Kurulum
+```text
+fortivpn-auto-connect/
+├── main.py                  # Desktop app: pywebview window and JS bridge to the VPN worker
+├── vpn_worker.py            # VPN tunnel and process management
+├── imap_client.py           # Mailbox polling and 2FA code extraction
+├── core/
+│   ├── config.py            # .env loading and saving
+│   └── elevation.py         # Windows administrator elevation
+├── ui/                      # Interface (plain HTML, CSS and JS)
+├── install.sh               # macOS installer
+├── Kurulum.command          # macOS installer (Finder double-click)
+├── FortiVPN_Baslat.command  # macOS launcher
+├── FortiVPN.app             # macOS app bundle
+├── Windows/
+│   ├── install.ps1          # Windows web installer
+│   ├── Kurulum.bat          # Windows setup script
+│   └── register_task.ps1    # Elevated setup step: openconnect install and scheduled task
+├── requirements.txt
+└── .env.example
+```
 
-`Kurulum.bat` normalde her şeyi otomatik hallederse de, bir adımda takılırsa (ör. şirket ağında indirme engelleniyorsa) bileşenleri elle de kurabilirsiniz:
+## Security
 
-- **Python 3.8+**: [python.org](https://www.python.org/downloads/) üzerinden indirip kurun. *(Kurulum sırasında "Add Python to PATH" kutucuğunu işaretleyin.)*
-- **openconnect for Windows (CLI)**: `choco install openconnect-gui` / manuel OpenConnect-GUI installer'ı **sadece GUI'yi kurar, ayrı bir `openconnect.exe` içermez** — bizim otomasyonumuz için işe yaramaz. Gerçek CLI, openconnect projesinin kendi resmi GitLab CI derlemesinden indiriliyor:
-  ```
-  https://gitlab.com/openconnect/openconnect/-/jobs/artifacts/v9.21/raw/openconnect-installer-MinGW64-GnuTLS.exe?job=MinGW64%2FGnuTLS
-  ```
-  Bu dosyayı indirip çalıştırın (`openconnect.exe` genelde `C:\Program Files\OpenConnect\` altına kurulur). Kurulum sonrası klasörü PATH'e ekleyin, ya da `.env` dosyasındaki `OPENCONNECT_EXE` ile tam yolu belirtin.
+- `.env` contains your VPN, mail and system passwords in plain text. Keep it
+  private.
+- `.env` is listed in `.gitignore`. Never commit it; share only `.env.example`.
 
-  > Not: Bu link openconnect'in `v9.21` etiketine bağlı bir GitLab CI artifact'i; ileride süresi dolabilir. Güncel bir sürüm gerekirse: [gitlab.com/openconnect/openconnect/-/pipelines](https://gitlab.com/openconnect/openconnect/-/pipelines) üzerinden istediğiniz etiketin pipeline'ını açıp **"MinGW64/GnuTLS"** job'ının artifact'ini indirin.
+## License
 
----
+Released under the [MIT License](LICENSE).
 
-## Yapılandırma Değişkenleri Açıklaması
+## Credits
 
-| Değişken | Açıklama | Örnek Değer |
-| :--- | :--- | :--- |
-| `VPN_SERVER` | FortiGate VPN ağ geçidi host ve port bilgisi | `vpn.sirketiniz.com:10321` |
-| `VPN_USER` | VPN kullanıcı adınız | `salihkirlioglu` |
-| `VPN_PASS` | VPN oturum açma parolanız | `GucluParola123!` |
-| `IMAP_SERVER` | Carbonio / Zimbra e-posta sunucusu adresi | `mail.sirketiniz.com` |
-| `IMAP_PORT` | Güvenli IMAP SSL portu (Standart 993) | `993` |
-| `IMAP_USER` | Doğrulama kodunun geldiği e-posta adresi | `adiniz@sirketiniz.com` |
-| `IMAP_PASS` | E-posta hesabı parolanız | `MailSifresi123!` |
-| `MAIL_TIMEOUT` | 2FA mailini bekleme tavan süresi (saniye) | `90` |
-| `PING_TARGET` | VPN canlılık denetimi (ping atılacak iç IP). Devre dışı bırakmak için `off` yapın | `off` |
-| `MAC_SUDO_PASS` | *(Yalnızca macOS)* `openfortivpn` tüneli için Mac kullanıcı parolası | `macParolaniz` |
-| `OPENCONNECT_EXE` | *(Yalnızca Windows)* `openconnect.exe` dosyasının tam yolu (boşsa PATH'te aranır) | `C:\Tools\openconnect\openconnect.exe` |
-| `VPN_SERVERCERT` | *(Yalnızca Windows)* openconnect sunucu sertifika özeti (boşsa ilk bağlantıda otomatik yakalanır) | `pin-sha256:...` |
-
----
-
-## Güvenlik Notu
-
-- Kendi gerçek kullanıcı adı ve şifrelerinizin yer aldığı `.env` dosyası **`.gitignore`** dosyası ile korunmaktadır.
-- Projeyi GitHub'a gönderirken **kesinlikle `.env` dosyasını commit etmeyin**, yalnızca `.env.example` şablon dosyasını paylaşın.
-
----
-
-## Lisans
-
-Bu proje [MIT Lisansı](LICENSE) kapsamında açık kaynak olarak sunulmaktadır.
+Background photo by [Allison Saeng](https://unsplash.com/@allisonsaeng) on [Unsplash](https://unsplash.com/photos/PjnV5hvsGzI), used under the [Unsplash License](https://unsplash.com/license). The image is not covered by this project's license.
